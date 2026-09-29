@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FGK CloseSeason 26</title>
+  <meta name="description" content="Регистрация на закрытие сезона FGK: аллейкат, голдспринт и хэллоуин-туса.">
+  <meta name="theme-color" content="#0d0b0a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik+Mono+One&family=Unbounded:wght@500;800&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="hero">
+    <img class="hero__img" src="assets/hero.jpg" alt="Райдер склонился над рулём трекового велосипеда">
+    <div class="hero__overlay"></div>
+    <div class="hero__content">
+      <p class="hero__kicker">FGK · закрытие сезона · 18+</p>
+      <h1 class="hero__title">Close<br>Season<span>26</span></h1>
+    </div>
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker__track">
+        <span>аллейкат ✦ голдспринт ✦ хэллоуин-туса ✦ награждение ✦ </span>
+        <span>аллейкат ✦ голдспринт ✦ хэллоуин-туса ✦ награждение ✦ </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="intro">
+      <p class="lead">На закрытие мы подготовили для вас сразу два эвента, и один плавно перетекает в другой.</p>
+
+      <ol class="route">
+        <li class="route__step">
+          <span class="route__num">01</span>
+          <div>
+            <h2>Аллейкат</h2>
+            <p>Последней точкой будет верк. <strong>Шлем обязателен.</strong></p>
+          </div>
+        </li>
+        <li class="route__step">
+          <span class="route__num">02</span>
+          <div>
+            <h2>Голдспринт</h2>
+            <p>Гонка на наших велосипедах и станках, там же — награждение. Велики паркуем на улице.</p>
+          </div>
+        </li>
+        <li class="route__step">
+          <span class="route__num">03</span>
+          <div>
+            <h2>Хэллоуин-туса</h2>
+            <p>В самом верке. Возьмите сменку под стрепы и под танцы.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="price" aria-labelledby="price-title">
+      <h2 id="price-title" class="section-title">Участие</h2>
+      <div class="price__grid">
+        <div class="price__card">
+          <span class="price__label">до 26 октября</span>
+          <span class="price__value">400 ₽</span>
+        </div>
+        <div class="price__card">
+          <span class="price__label">с понедельника, 26 октября</span>
+          <span class="price__value">800 ₽</span>
+        </div>
+        <div class="price__card price__card--free">
+          <span class="price__label">девушки</span>
+          <span class="price__value">бесплатно</span>
+        </div>
+      </div>
+      <div class="pay">
+        <p>Оплата онлайн — перевод Сбербанк по номеру</p>
+        <button type="button" class="pay__phone" id="copy-phone" data-phone="+79966061200">
+          <span>+7 996 606-12-00</span>
+          <small id="copy-hint">Тимур · нажми, чтобы скопировать</small>
+        </button>
+      </div>
+    </section>
+
+    <form class="form" id="reg-form" novalidate>
+      <h2 class="section-title">Регистрация</h2>
+      <p class="form__note"><span class="req">*</span> — обязательные поля</p>
+
+      <div class="field" data-field="telegram">
+        <label class="field__label" for="telegram">Ник в Telegram <span class="req">*</span></label>
+        <div class="field__input field__input--prefixed">
+          <span class="field__prefix" aria-hidden="true">@</span>
+          <input id="telegram" name="telegram" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="username" required>
+        </div>
+        <p class="field__error" role="alert"></p>
+      </div>
+
+      <fieldset class="field" data-field="gender">
+        <legend class="field__label">Пол <span class="req">*</span></legend>
+        <div class="choice">
+          <label class="choice__item">
+            <input type="radio" name="gender" value="М" required>
+            <span>М</span>
+          </label>
+          <label class="choice__item">
+            <input type="radio" name="gender" value="Ж">
+            <span>Ж</span>
+          </label>
+        </div>
+        <p class="field__hint" id="gender-hint" hidden>Для девушек участие бесплатное — поле оплаты можно заполнить «бесплатно».</p>
+        <p class="field__error" role="alert"></p>
+      </fieldset>
+
+      <div class="field" data-field="payment">
+        <label class="field__label" for="payment">Источник оплаты <span class="req">*</span></label>
+        <p class="field__hint">Укажите, с чьей карты / от кого пришёл перевод, чтобы мы нашли платёж.</p>
+        <div class="field__input">
+          <input id="payment" name="payment" type="text" autocomplete="off" placeholder="например: Иван И., Тинькофф" required>
+        </div>
+        <p class="field__error" role="alert"></p>
+      </div>
+
+      <button class="submit" type="submit">
+        <span class="submit__text">Я в деле</span>
+        <span class="submit__spinner" aria-hidden="true"></span>
+      </button>
+      <p class="form__status" id="form-status" role="status"></p>
+    </form>
+
+    <section class="done" id="done" hidden tabindex="-1">
+      <div class="done__pumpkin" aria-hidden="true">🎃</div>
+      <h2>Ты в списке!</h2>
+      <p>Ответ записан. Увидимся на старте — не забудь шлем.</p>
+      <button type="button" class="link-btn" id="again">Отправить ещё один ответ</button>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>FGK CloseSeason 26 · 18+</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
