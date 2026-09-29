@@ -94,16 +94,13 @@ h1, h2, h3 { margin: 0; }
 }
 @keyframes ticker { to { transform: translateX(-50%); } }
 
-/* дата в стиле плёночной датировки на фото */
 .hero__date {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px;
   margin: 18px 0 0;
 }
 .hero__date time {
-  font: 400 clamp(30px, 6vw, 48px)/1 "Share Tech Mono", ui-monospace, monospace;
-  letter-spacing: .06em;
-  color: #ffb13b;
-  text-shadow: 0 0 6px rgba(255,140,30,.75), 0 0 22px rgba(255,106,19,.45);
+  font: 800 clamp(24px, 4.6vw, 36px)/1 var(--head);
+  text-transform: uppercase;
 }
 .hero__date span {
   color: var(--muted);
