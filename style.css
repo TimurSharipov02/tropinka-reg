@@ -142,6 +142,15 @@ h1, h2, h3 { margin: 0; }
   text-transform: uppercase;
   margin: 4px 0 4px;
 }
+.route__step .tag {
+  display: inline-block;
+  margin-left: 4px; padding: 3px 8px 4px;
+  border-radius: 6px;
+  background: var(--orange); color: #111;
+  font: 800 .8em/1 var(--head);
+  text-transform: none; letter-spacing: 0;
+  transform: rotate(-2deg);
+}
 .route__step p { margin: 0; color: var(--muted); }
 .route__step strong { color: var(--acid); font-weight: 800; }
 
