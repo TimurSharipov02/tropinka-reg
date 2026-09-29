@@ -294,7 +294,7 @@ h1, h2, h3 { margin: 0; }
 }
 .submit.is-loading .submit__spinner { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.form__status { margin: 12px 0 0; text-align: center; color: var(--muted); font-size: 14px; }
+.form__status { margin: 12px 0 0; text-align: center; color: var(--danger); font-size: 14px; font-weight: 600; }
 .form__status:empty { display: none; }
 
 /* ---------- done ---------- */
@@ -452,6 +452,7 @@ h1, h2, h3 { margin: 0; }
 .row__score b { display: block; font: 800 22px/1 var(--head); }
 .row__score small { color: var(--muted); font-size: 12px; }
 .row--me { border: 2px solid var(--orange); }
+.board__empty { padding: 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 14px; }
 
 /* ---------- scan sheet ---------- */
 .sheet {

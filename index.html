@@ -135,12 +135,13 @@
           <span class="submit__text">Я в деле</span>
           <span class="submit__spinner" aria-hidden="true"></span>
         </button>
+        <p class="form__status" id="form-status" role="alert"></p>
       </form>
 
       <section class="done" id="done" hidden tabindex="-1">
         <div class="done__pumpkin" aria-hidden="true">🎃</div>
         <h2>Ты в списке!</h2>
-        <p>30 октября в 21:00 заходи сюда с этого телефона — появятся точки маршрута. Не забудь шлем.</p>
+        <p id="done-text">30 октября в 21:00 здесь появятся точки маршрута. Не забудь шлем.</p>
         <button type="button" class="link-btn" id="again">Отправить ещё один ответ</button>
       </section>
     </div>
@@ -222,6 +223,7 @@
     <p>FGK CloseSeason 26 · 18+</p>
   </footer>
 
+  <script src="config.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>
 </body>
