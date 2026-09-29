@@ -192,20 +192,12 @@ h1, h2, h3 { margin: 0; }
 
 .pay {
   margin-top: 16px;
-  padding: 18px 20px;
+  padding: 16px 20px;
   border: 1px dashed var(--orange);
   border-radius: var(--radius);
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
 }
 .pay p { margin: 0; color: var(--muted); }
-.pay__phone {
-  all: unset; cursor: pointer;
-  display: flex; flex-direction: column; gap: 2px;
-  text-align: right;
-}
-.pay__phone span { font: 800 22px/1.1 var(--head); color: var(--orange); }
-.pay__phone small { color: var(--muted); font-size: 12px; }
-.pay__phone:focus-visible { outline: 2px solid var(--acid); outline-offset: 6px; border-radius: 6px; }
+.pay b { color: var(--ink); }
 
 /* ---------- form ---------- */
 .form {
@@ -300,14 +292,52 @@ h1, h2, h3 { margin: 0; }
 /* ---------- done ---------- */
 .done {
   text-align: center;
-  padding: 48px 22px;
+  padding: 36px 22px;
   border-radius: 26px;
   background: var(--orange); color: #111;
   outline: none;
 }
-.done__pumpkin { font-size: 64px; animation: bob 2.4s ease-in-out infinite; }
 .done h2 { font: 400 clamp(28px, 7vw, 44px)/1 var(--display); text-transform: uppercase; margin: 12px 0; }
 .done p { margin: 0 0 20px; font-weight: 600; }
+.paybox {
+  margin: 4px auto 22px;
+  max-width: 460px;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--bg); color: var(--ink);
+  text-align: left;
+}
+.paybox__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.paybox__badge {
+  padding: 6px 10px; border-radius: 999px; white-space: nowrap;
+  background: var(--line); color: var(--ink);
+  font: 800 12px/1 var(--head); text-transform: uppercase;
+}
+.paybox__sum { font: 800 30px/1 var(--head); white-space: nowrap; }
+.paybox__steps { margin: 16px 0 0; padding-left: 20px; display: grid; gap: 10px; color: var(--muted); font-size: 15px; }
+.paybox__steps b { color: var(--ink); }
+.paybox__note { margin: 16px 0 0 !important; color: var(--muted); font-size: 14px; font-weight: 400 !important; }
+.paybox__refresh {
+  all: unset; cursor: pointer; margin-top: 12px;
+  color: var(--orange); font-size: 14px; font-weight: 800;
+}
+.paybox__refresh:disabled { opacity: .5; cursor: progress; }
+.paybox[data-state="paid"] .paybox__badge,
+.paybox[data-state="free"] .paybox__badge { background: var(--acid); color: #111; }
+.paybox[data-state="paid"] .paybox__steps,
+.paybox[data-state="free"] .paybox__steps,
+.paybox[data-state="paid"] .paybox__refresh,
+.paybox[data-state="free"] .paybox__refresh { display: none; }
+.copy {
+  all: unset; cursor: pointer;
+  display: inline-block; margin: 2px 0;
+  padding: 5px 10px; border-radius: 8px;
+  background: var(--bg-2); border: 1px solid var(--line);
+  color: var(--orange); font-weight: 800;
+}
+.copy::after { content: " ⧉"; opacity: .6; font-weight: 400; }
+.copy:focus-visible, .paybox__refresh:focus-visible { outline: 2px solid var(--acid); outline-offset: 2px; }
+
 .link-btn { all: unset; cursor: pointer; font-weight: 800; text-decoration: underline; text-underline-offset: 4px; }
 @keyframes bob { 50% { transform: translateY(-8px) rotate(-6deg); } }
 
@@ -379,6 +409,8 @@ h1, h2, h3 { margin: 0; }
 .me__nick { font: 800 18px/1.2 var(--head); margin-right: auto; }
 .me__stat { font-size: 14px; }
 .me__stat b { font: 800 18px/1 var(--head); }
+.me__warn { flex-basis: 100%; font-size: 13px; font-weight: 800; }
+.me__warn::before { content: "⚠ "; }
 
 /* ---------- tabs ---------- */
 .tabs {
@@ -515,7 +547,6 @@ h1, h2, h3 { margin: 0; }
   .price__grid { grid-template-columns: 1fr; }
   .price__card { min-height: 0; flex-direction: row; align-items: center; }
   .price__card--free { transform: rotate(-1deg); }
-  .pay__phone { text-align: left; }
   .route__step { grid-template-columns: 48px 1fr; padding: 16px; }
   .route__num { width: 48px; height: 48px; font-size: 16px; }
   .route__step + .route__step::before { left: 39px; }

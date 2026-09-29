@@ -3,7 +3,8 @@
  *
  * Данные лежат в этой же Google Таблице:
  *   «Настройки»   — время старта, радиус засчёта, адрес сайта
- *   «Регистрации» — ники участников (колонка «Допуск»: «нет» — не пускать в гонку)
+ *   «Регистрации» — ники участников, сумма и галочка «Оплачено»
+ *                   (колонка «Допуск»: «нет» — не пускать в гонку)
  *   «Точки»       — точки маршрута, их ценность, секреты и ссылки для QR
  *   «Сканы»       — журнал всех попыток скана со статусом
  *
@@ -18,11 +19,23 @@ var SHEETS = {
 };
 
 var HEADERS = {
-  regs: ["Время", "Ник", "Пол", "Источник оплаты", "Допуск"],
+  regs: ["Время", "Ник", "Пол", "Источник оплаты", "Сумма, ₽", "Оплачено", "Допуск"],
   points: ["ID", "Название", "Адрес", "Широта", "Долгота", "Ценность", "Финиш", "Секрет", "Ссылка для QR", "QR"],
   scans: ["Время", "Ник", "Точка", "Очки", "Расстояние, м", "Точность, м", "Статус"],
 };
 
+var DEFAULT_SETTINGS = [
+  ["Старт", "2026-10-30T21:00:00+03:00"],
+  ["Радиус, м", "150"],
+  ["Адрес сайта", "https://ВАШ-НИК.github.io/tropinka-reg/"],
+  ["Цена, ₽", "300"],
+  ["Цена после повышения, ₽", "600"],
+  ["Повышение цены", "2026-10-26T00:00:00+03:00"],
+  ["Гонка только после оплаты", "нет"],
+];
+
+var COL_PAID = 6; // колонка «Оплачено» на листе «Регистрации»
+var YES = /^(да|yes|1|true|x|✓)$/i;
 var OK = "ok";
 var CACHE_SECONDS = 10;
 var MAX_ACCURACY_M = 500; // хуже этой точности геолокацию не принимаем
@@ -32,8 +45,10 @@ var ACCURACY_BONUS_M = 50; // допуск на погрешность GPS св�
 
 function doGet(e) {
   return handle_(function () {
-    var action = (e && e.parameter && e.parameter.action) || "state";
+    var p = (e && e.parameter) || {};
+    var action = p.action || "state";
     if (action === "state") return getState_();
+    if (action === "me") return me_(p.nick);
     throw userError_("Неизвестное действие");
   });
 }
@@ -99,10 +114,33 @@ function register_(body) {
   if (!payment) throw userError_("Укажи источник оплаты");
 
   return withLock_(function () {
-    if (findRegistration_(nick)) return { nick: nick, already: true };
-    sheet_("regs").appendRow([new Date(), nick, gender, payment, ""]);
-    return { nick: nick, already: false };
+    var existing = findRegistration_(nick);
+    if (existing) return status_(existing, { already: true });
+    var amount = price_(s, gender, Date.now());
+    var sh = sheet_("regs");
+    sh.appendRow([new Date(), nick, gender, payment, amount, amount === 0, ""]);
+    sh.getRange(sh.getLastRow(), COL_PAID).insertCheckboxes();
+    return status_({ nick: nick, amount: amount, paid: amount === 0, blocked: false }, { already: false });
   });
+}
+
+// статус регистрации и оплаты — чтобы участник видел, подтверждён ли перевод
+function me_(raw) {
+  var nick = cleanNick_(raw);
+  var reg = nick && findRegistration_(nick);
+  if (!reg) throw userError_("Не нашли такой ник среди зарегистрированных");
+  return status_(reg, {});
+}
+
+function status_(reg, extra) {
+  var out = { nick: reg.nick, amount: reg.amount, paid: reg.paid, blocked: reg.blocked };
+  for (var k in extra) out[k] = extra[k];
+  return out;
+}
+
+function price_(s, gender, at) {
+  if (gender === "Ж") return 0;
+  return at < s.priceChange ? s.priceEarly : s.priceLate;
 }
 
 function login_(body) {
@@ -111,7 +149,7 @@ function login_(body) {
   var reg = findRegistration_(nick);
   if (!reg) throw userError_("Не нашли @" + nick + " среди зарегистрированных");
   if (reg.blocked) throw userError_("@" + nick + " пока не допущен к гонке — напиши организаторам");
-  return { nick: nick };
+  return status_(reg, {});
 }
 
 function scan_(body) {
@@ -142,6 +180,7 @@ function scan_(body) {
     var reg = nick && findRegistration_(nick);
     if (!reg) fail(null, "нет регистрации", "Войди ником из регистрации");
     if (reg.blocked) fail(null, "не допущен", "Ты пока не допущен к гонке — напиши организаторам");
+    if (s.requirePaid && !reg.paid) fail(null, "не оплачено", "Оплата ещё не подтверждена — покажи перевод организаторам");
 
     var point = readPoints_().filter(function (p) { return p.id === cpId; })[0];
     if (!point) fail(null, "нет точки", "Такой точки нет — отсканируй код ещё раз");
@@ -174,10 +213,16 @@ function settings_() {
   rows.forEach(function (r) { map[String(r[0]).trim()] = r[1]; });
   var start = map["Старт"] instanceof Date ? map["Старт"].getTime() : Date.parse(String(map["Старт"]));
   if (!isFinite(start)) throw new Error("В «Настройках» неверное время старта");
+  var change = map["Повышение цены"];
+  change = change instanceof Date ? change.getTime() : Date.parse(String(change));
   return {
     start: start,
     radius: Number(map["Радиус, м"]) || 150,
     site: String(map["Адрес сайта"] || "").trim(),
+    priceEarly: Number(map["Цена, ₽"]) || 0,
+    priceLate: Number(map["Цена после повышения, ₽"]) || Number(map["Цена, ₽"]) || 0,
+    priceChange: isFinite(change) ? change : Infinity,
+    requirePaid: YES.test(String(map["Гонка только после оплаты"] || "").trim()),
   };
 }
 
@@ -192,7 +237,7 @@ function readPoints_() {
         lat: Number(r[3]),
         lng: Number(r[4]),
         value: Number(r[5]) || 1,
-        final: /^(да|yes|1|true|x)$/i.test(String(r[6]).trim()),
+        final: YES.test(String(r[6]).trim()),
         secret: String(r[7]).trim(),
       };
     });
@@ -213,7 +258,12 @@ function readScans_() {
 function findRegistration_(nick) {
   var row = rows_("regs").filter(function (r) { return cleanNick_(r[1]) === nick; })[0];
   if (!row) return null;
-  return { nick: nick, blocked: /^(нет|no|0|false)$/i.test(String(row[4]).trim()) };
+  return {
+    nick: nick,
+    amount: Number(row[4]) || 0,
+    paid: row[5] === true || YES.test(String(row[5]).trim()),
+    blocked: /^(нет|no|0|false)$/i.test(String(row[6]).trim()),
+  };
 }
 
 // очки = сумма ценности точек; при равенстве выше тот, кто набрал их раньше
@@ -295,16 +345,15 @@ function setup() {
     return sh;
   };
 
+  // дописываем недостающие настройки, существующие значения не трогаем
   var st = ensure(SHEETS.settings);
-  if (st.getLastRow() === 0) {
-    st.getRange(1, 1, 3, 2).setNumberFormat("@").setValues([
-      ["Старт", "2026-10-30T21:00:00+03:00"],
-      ["Радиус, м", "150"],
-      ["Адрес сайта", "https://ВАШ-НИК.github.io/tropinka-reg/"],
-    ]);
-    st.getRange("A1:A3").setFontWeight("bold");
-    st.autoResizeColumns(1, 2);
-  }
+  var have = st.getLastRow() ? st.getRange(1, 1, st.getLastRow(), 1).getValues().map(function (r) { return String(r[0]).trim(); }) : [];
+  DEFAULT_SETTINGS.forEach(function (row) {
+    if (have.indexOf(row[0]) >= 0) return;
+    st.getRange(st.getLastRow() + 1, 1, 1, 2).setNumberFormat("@").setValues([row]);
+    st.getRange(st.getLastRow(), 1).setFontWeight("bold");
+  });
+  st.autoResizeColumns(1, 2);
 
   ensure(SHEETS.regs, HEADERS.regs);
   ensure(SHEETS.scans, HEADERS.scans);

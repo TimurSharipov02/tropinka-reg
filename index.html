@@ -85,11 +85,7 @@
           </div>
         </div>
         <div class="pay">
-          <p>Оплата онлайн — перевод Сбербанк по номеру</p>
-          <button type="button" class="pay__phone" id="copy-phone" data-phone="+79966061200">
-            <span>+7 996 606-12-00</span>
-            <small id="copy-hint">Тимур · нажми, чтобы скопировать</small>
-          </button>
+          <p><b>Оплата — перевод по СБП, без комиссии.</b> Сумму и реквизиты покажем сразу после регистрации, а когда перевод придёт — отметим оплату.</p>
         </div>
       </section>
 
@@ -124,7 +120,7 @@
 
         <div class="field" data-field="payment">
           <label class="field__label" for="payment">Источник оплаты <span class="req">*</span></label>
-          <p class="field__hint">Укажите, с чьей карты / от кого пришёл перевод, чтобы мы нашли платёж.</p>
+          <p class="field__hint">Имя и банк, с которых будет перевод, — чтобы мы нашли его и отметили оплату.</p>
           <div class="field__input">
             <input id="payment" name="payment" type="text" autocomplete="off" placeholder="например: Иван И., Тинькофф" required>
           </div>
@@ -139,10 +135,26 @@
       </form>
 
       <section class="done" id="done" hidden tabindex="-1">
-        <div class="done__pumpkin" aria-hidden="true">🎃</div>
         <h2>Ты в списке!</h2>
         <p id="done-text">30 октября в 21:00 здесь появятся точки маршрута. Не забудь шлем.</p>
-        <button type="button" class="link-btn" id="again">Отправить ещё один ответ</button>
+
+        <div class="paybox" id="paybox" data-state="wait">
+          <div class="paybox__head">
+            <span class="paybox__badge" id="pay-badge">ждём перевод</span>
+            <span class="paybox__sum" id="pay-sum">300 ₽</span>
+          </div>
+          <ol class="paybox__steps">
+            <li>Открой приложение своего банка → перевод <b>по номеру телефона (СБП)</b>.</li>
+            <li>Номер: <button type="button" class="copy" data-copy="+79966061200">+7 996 606-12-00</button></li>
+            <li>Банк получателя — <b>Сбербанк</b>, получатель — Тимур.</li>
+            <li>Сумма: <button type="button" class="copy" id="pay-sum-copy" data-copy="300">300 ₽</button></li>
+            <li>В сообщении к переводу — твой ник: <button type="button" class="copy" id="pay-nick" data-copy="@nick">@nick</button></li>
+          </ol>
+          <p class="paybox__note" id="pay-note">Перевод по СБП без комиссии. Как только увидим его — отметим оплату, и статус здесь сменится.</p>
+          <button type="button" class="paybox__refresh" id="pay-refresh">Обновить статус</button>
+        </div>
+
+        <button type="button" class="link-btn" id="again">Зарегистрировать другого участника</button>
       </section>
     </div>
 
@@ -212,6 +224,7 @@
   <nav class="demo" aria-label="Состояния макета">
     <span class="demo__label">макет</span>
     <button type="button" data-demo="reg">До 21:00</button>
+    <button type="button" data-demo="pay">Оплата</button>
     <button type="button" data-demo="guest">21:00 · без входа</button>
     <button type="button" data-demo="racer">21:00 · участник</button>
     <button type="button" data-demo="scan-ok">Скан ✓</button>

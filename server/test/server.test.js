@@ -10,13 +10,26 @@ const setStart=ms=>{S('Настройки').data[0][1]=new Date(ms).toISOString(
 
 setStart(Date.now()+3600e3);
 let st=get(); assert.equal(st.open,false); assert.equal(st.checkpoints,undefined);
-assert.equal(post({action:'register',telegram:'@Fixie_Masha',gender:'Ж',payment:'бесплатно'}).nick,'fixie_masha');
+let reg=post({action:'register',telegram:'@Fixie_Masha',gender:'Ж',payment:'бесплатно'});
+assert.equal(reg.nick,'fixie_masha'); assert.equal(reg.amount,0); assert.equal(reg.paid,true);
 assert.equal(post({action:'register',telegram:'fixie_masha',gender:'Ж',payment:'x'}).already,true);
 assert.equal(post({action:'register',telegram:'Иван',gender:'М',payment:'x'}).ok,false);
-assert.equal(post({action:'register',telegram:'bob_1',gender:'М',payment:'Боб'}).ok,true);
+// цена после повышения
+const change=S('Настройки').data.find(r=>r[0]==='Повышение цены');
+change[1]=new Date(Date.now()-86400e3).toISOString();
+reg=post({action:'register',telegram:'bob_1',gender:'М',payment:'Боб'});
+assert.equal(reg.ok,true); assert.equal(reg.amount,600); assert.equal(reg.paid,false);
+// цена до повышения
+change[1]=new Date(Date.now()+86400e3).toISOString();
+assert.equal(post({action:'register',telegram:'early_bird',gender:'М',payment:'x'}).amount,300);
+// статус оплаты
+let me=JSON.parse(ctx.doGet({parameter:{action:'me',nick:'@bob_1'}}).s); assert.equal(me.paid,false); assert.equal(me.amount,600);
+S('Регистрации').data[2][5]=true;
+me=JSON.parse(ctx.doGet({parameter:{action:'me',nick:'bob_1'}}).s); assert.equal(me.paid,true);
+assert.equal(JSON.parse(ctx.doGet({parameter:{action:'me',nick:'nobody'}}).s).ok,false);
 assert.equal(post({action:'register',telegram:'blocked_guy',gender:'М',payment:'-'}).ok,true);
-S('Регистрации').data[3][4]='нет';
-assert.equal(S('Регистрации').data.length,4);
+S('Регистрации').data[4][6]='нет';
+assert.equal(S('Регистрации').data.length,5);
 assert.equal(post({action:'login',nick:'@FIXIE_MASHA'}).nick,'fixie_masha');
 assert.equal(post({action:'login',nick:'nobody'}).ok,false);
 assert.match(post({action:'login',nick:'blocked_guy'}).error,/не допущен/);
@@ -36,6 +49,12 @@ r=post({action:'scan',nick:'fixie_masha',cp:'c2',k:c2[7],lat:c2[3],lng:c2[4],acc
 r=post({action:'scan',nick:'bob_1',cp:'c2',k:c2[7],lat:c2[3],lng:c2[4],accuracy:5}); assert.equal(r.ok,true);
 st=get();
 assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],['fixie_masha',2]]);
+// «Гонка только после оплаты»
+S('Настройки').data.find(r=>r[0]==='Гонка только после оплаты')[1]='да';
+r=post({action:'scan',nick:'early_bird',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:5}); assert.match(r.error,/Оплата/);
+S('Настройки').data.find(r=>r[0]==='Гонка только после оплаты')[1]='нет';
+// повторный setup не затирает настройки и не дублирует строки
+const before=JSON.stringify(S('Настройки').data); ctx.setup(); assert.equal(JSON.stringify(S('Настройки').data),before);
 r=post({action:'scan',nick:'fixie_masha',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:5}); 
 st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],['fixie_masha',3]],'tie: earlier first');
 

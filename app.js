@@ -13,6 +13,7 @@
   let clockOffset = 0; // серверное время − локальное
   let user = null; // { nick }
   let pendingScan = null; // скан, сделанный до входа
+  let payment = null; // { amount, paid } — статус оплаты участника
 
   const now = () => Date.now() + clockOffset;
   const raceOn = () => state && now() >= state.start;
@@ -42,6 +43,10 @@
       });
       return res.json();
     },
+    async me(nick) {
+      const res = await fetch(CFG.apiUrl + "?action=me&nick=" + encodeURIComponent(nick), { cache: "no-store" });
+      return res.json();
+    },
     register: (v) => remote.call("register", v),
     login: (nick) => remote.call("login", { nick }),
     scan: (v) => remote.call("scan", v),
@@ -56,6 +61,8 @@
     const byId = Object.fromEntries(R.checkpoints.map((c) => [c.id, c]));
     let mode = params.get("demo") || "reg";
     let mine = []; // сканы демо-участника
+    const regs = { [R.demoUser.nick]: { amount: 300, paid: true } };
+    const price = (g) => (g === "Ж" ? 0 : Date.now() < Date.parse("2026-10-26T00:00:00+03:00") ? 300 : 600);
 
     function board() {
       const all = R.riders.map((r) => ({ nick: r.nick, scans: r.scans.map(([id, m]) => [id, at(m)]) }));
@@ -73,26 +80,33 @@
     return {
       setMode(m) {
         mode = m;
-        mine = m === "reg" ? [] : R.demoUser.scans.map(([id, m2]) => [id, at(m2)]);
+        mine = m === "reg" || m === "pay" ? [] : R.demoUser.scans.map(([id, m2]) => [id, at(m2)]);
       },
       fakePosition(cpId, far) {
         const c = byId[cpId];
         return far ? { lat: c.lat + 0.015, lng: c.lng + 0.02, accuracy: 12 } : { lat: c.lat + 0.0002, lng: c.lng + 0.0002, accuracy: 12 };
       },
       async state() {
-        const t = mode === "reg" ? Date.now() : at(75);
+        const t = mode === "reg" || mode === "pay" ? Date.now() : at(75);
         const s = { now: t, start: START, radius: R.radius, open: t >= START };
         if (s.open) Object.assign(s, { checkpoints: R.checkpoints, leaderboard: board() });
         return s;
       },
       async register(v) {
-        return { ok: true, nick: cleanNick(v.telegram) };
+        const nick = cleanNick(v.telegram);
+        const already = Boolean(regs[nick]);
+        if (!already) regs[nick] = { amount: price(v.gender), paid: price(v.gender) === 0 };
+        return { ok: true, nick, already, ...regs[nick] };
+      },
+      async me(nick) {
+        const n = cleanNick(nick);
+        return { ok: true, nick: n, ...(regs[n] || { amount: price("М"), paid: false }) };
       },
       async login(nick) {
         const n = cleanNick(nick);
         const saved = store.get();
         return n === R.demoUser.nick || (saved && saved.nick === n)
-          ? { ok: true, nick: n }
+          ? { ok: true, nick: n, ...(regs[n] || { amount: 300, paid: false }) }
           : { ok: false, error: "Не нашли @" + (n || nick) + " среди зарегистрированных" };
       },
       async scan(v) {
@@ -196,7 +210,8 @@
       '<span class="me__nick">@' + esc(me.nick) + "</span>" +
       '<span class="me__stat"><b>' + me.score + "</b> очк.</span>" +
       '<span class="me__stat"><b>' + me.scans.length + "/" + state.checkpoints.length + "</b> точек</span>" +
-      '<span class="me__stat me__place"><b>' + (me.place ? "#" + me.place : "—") + "</b> в топе</span>";
+      '<span class="me__stat me__place"><b>' + (me.place ? "#" + me.place : "—") + "</b> в топе</span>" +
+      (payment && !payment.paid ? '<span class="me__warn">оплата пока не подтверждена</span>' : "");
   }
 
   function renderCheckpoints() {
@@ -260,6 +275,7 @@
       if (!res.ok) return ($("login-error").textContent = res.error);
       $("login-error").textContent = "";
       signIn(res.nick);
+      payment = { amount: res.amount, paid: res.paid };
       render();
       if (pendingScan) scan(...pendingScan);
     } catch (err) {
@@ -349,7 +365,7 @@
       "+" + res.value + " очк. · " + fmtDistance(res.distance) + " от точки" +
         (me.place ? "<br>Теперь ты <b>#" + me.place + "</b> в топе." : "") +
         (final ? "<br>Финиш! Паркуй велик — внутри награждение и туса." : ""),
-      "Точка засчитана · " + fmtTime(res.at), final ? "🎃" : "✓");
+      "Точка засчитана · " + fmtTime(res.at), "✓");
   }
 
   $("scan-close").addEventListener("click", () => {
@@ -410,11 +426,9 @@
         return;
       }
       signIn(res.nick);
-      $("done-text").textContent = res.already
-        ? "@" + res.nick + " уже был в списке — всё в силе. 30 октября в 21:00 здесь появятся точки маршрута."
-        : "30 октября в 21:00 здесь появятся точки маршрута — ты уже будешь в игре под @" + res.nick + ". Не забудь шлем.";
-      form.hidden = true;
-      done.hidden = false;
+      showDone(res, res.already
+        ? "@" + res.nick + " уже был в списке — всё в силе."
+        : "30 октября в 21:00 здесь появятся точки маршрута — ты в игре под @" + res.nick + ". Не забудь шлем.");
       done.focus();
     } catch (err) {
       $("form-status").textContent = "Нет связи с сервером, попробуй ещё раз";
@@ -432,16 +446,61 @@
     form.telegram.focus();
   });
 
-  const phoneBtn = $("copy-phone");
-  const hint = $("copy-hint");
-  phoneBtn.addEventListener("click", async () => {
+  /* ================= оплата ================= */
+
+  function showDone(status, text) {
+    form.hidden = true;
+    done.hidden = false;
+    $("done-text").textContent = text;
+    renderPayment(status);
+  }
+
+  function renderPayment(status) {
+    payment = { amount: status.amount, paid: status.paid };
+    const box = $("paybox");
+    const free = status.amount === 0;
+    box.dataset.state = free ? "free" : status.paid ? "paid" : "wait";
+    $("pay-badge").textContent = free ? "бесплатно" : status.paid ? "оплачено ✓" : "ждём перевод";
+    $("pay-sum").textContent = free ? "0 ₽" : status.amount + " ₽";
+    $("pay-sum-copy").textContent = status.amount + " ₽";
+    $("pay-sum-copy").dataset.copy = String(status.amount);
+    $("pay-nick").textContent = "@" + status.nick;
+    $("pay-nick").dataset.copy = "@" + status.nick;
+    $("pay-note").textContent = free
+      ? "Для девушек участие бесплатное — платить ничего не нужно."
+      : status.paid
+        ? "Оплата подтверждена. Увидимся 30 октября в 21:00!"
+        : "Перевод по СБП без комиссии. Как только увидим его — отметим оплату, и статус здесь сменится.";
+  }
+
+  async function loadMyStatus() {
+    if (!user) return;
     try {
-      await navigator.clipboard.writeText(phoneBtn.dataset.phone);
-      hint.textContent = "Скопировано ✓";
+      const res = await api.me(user.nick);
+      if (!res.ok) return;
+      payment = { amount: res.amount, paid: res.paid };
+      if (!raceOn()) showDone(res, "@" + res.nick + ", ты в списке. 30 октября в 21:00 здесь появятся точки маршрута.");
+      else render();
+    } catch (err) { /* статус оплаты не критичен — покажем в следующий раз */ }
+  }
+
+  $("pay-refresh").addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    await loadMyStatus();
+    e.target.disabled = false;
+  });
+
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".copy");
+    if (!btn) return;
+    const label = btn.textContent;
+    try {
+      await navigator.clipboard.writeText(btn.dataset.copy);
+      btn.textContent = "скопировано ✓";
     } catch (err) {
-      hint.textContent = phoneBtn.dataset.phone;
+      btn.textContent = btn.dataset.copy;
     }
-    setTimeout(() => (hint.textContent = "Тимур · нажми, чтобы скопировать"), 2000);
+    setTimeout(() => (btn.textContent = label), 1500);
   });
 
   /* ================= переключатель состояний (только демо) ================= */
@@ -452,8 +511,17 @@
     $("scan-sheet").hidden = true;
     user = null;
     pendingScan = null;
-    if (!["reg", "guest", "scan-guest"].includes(mode)) signIn(window.RACE.demoUser.nick);
+    payment = null;
+    form.hidden = false;
+    done.hidden = true;
+    if (!["reg", "pay", "guest", "scan-guest"].includes(mode)) signIn(window.RACE.demoUser.nick);
+    if (mode === "racer") payment = { amount: 300, paid: false };
     await refresh();
+    if (mode === "pay") {
+      const res = await demo.register({ telegram: "night_rider", gender: "М" });
+      signIn(res.nick);
+      showDone(res, "30 октября в 21:00 здесь появятся точки маршрута — ты в игре под @" + res.nick + ". Не забудь шлем.");
+    }
     if (mode === "scan-ok") scan("c6", "demo", demo.fakePosition("c6"));
     if (mode === "scan-far") scan("c5", "demo", demo.fakePosition("c5", true));
     if (mode === "scan-guest") scan("c6", "demo", demo.fakePosition("c6"));
@@ -476,6 +544,7 @@
     if (saved && cleanNick(saved.nick)) user = { nick: saved.nick };
     if (DEMO) demo.setMode("reg");
     await refresh();
+    loadMyStatus();
     if (params.has("cp")) scan(params.get("cp"), params.get("k"));
   })();
 
