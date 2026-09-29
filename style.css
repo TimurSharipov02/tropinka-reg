@@ -43,11 +43,10 @@ h1, h2, h3 { margin: 0; }
 /* кадр целиком, без обрезки — важны и края, и дата в углу */
 .hero__photo {
   margin: 0 auto;
-  max-width: 1200px;
+  max-width: 960px;
 }
 .hero__photo img {
   width: 100%; height: auto;
-  aspect-ratio: 800 / 248;
   filter: saturate(1.1) contrast(1.03);
 }
 .hero__content {
