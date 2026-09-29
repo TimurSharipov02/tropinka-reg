@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FGK CloseSeason 26</title>
-  <meta name="description" content="Регистрация на закрытие сезона FGK 30 октября: аллейкат, голдспринт и Halloween bass_u x werk.">
+  <meta name="description" content="Закрытие сезона FGK 30 октября: аллейкат по QR-точкам со стартом в 21:00, голдспринт и Halloween bass_u x werk.">
   <meta name="theme-color" content="#0d0b0a">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +21,7 @@
     <div class="hero__content">
       <p class="hero__kicker">FGK · закрытие сезона · 18+</p>
       <h1 class="hero__title">Close Season<span>26</span></h1>
-      <p class="hero__date"><time datetime="2026-10-30">30 октября</time><span>пятница</span></p>
+      <p class="hero__date"><time datetime="2026-10-30">30 октября</time><span>пятница · старт 21:00</span></p>
     </div>
     <div class="ticker" aria-hidden="true">
       <div class="ticker__track">
@@ -32,116 +32,197 @@
   </header>
 
   <main class="wrap">
-    <section class="intro">
-      <p class="lead">На закрытие мы подготовили для вас сразу два эвента, и один плавно перетекает в другой.</p>
+    <!-- ===== до старта: регистрация ===== -->
+    <div class="view" id="reg-view">
+      <section class="countdown" aria-live="off">
+        <p class="countdown__label">До старта аллейката</p>
+        <p class="countdown__value" id="countdown">—</p>
+        <p class="countdown__note">В 21:00 регистрация закроется, а здесь появятся точки маршрута.</p>
+      </section>
 
-      <ol class="route">
-        <li class="route__step">
-          <span class="route__num">01</span>
-          <div>
-            <h2>Аллейкат</h2>
-            <p>Финиш — в верке. <strong>Шлем обязателен.</strong></p>
-          </div>
-        </li>
-        <li class="route__step">
-          <span class="route__num">02</span>
-          <div>
-            <h2>Голдспринт</h2>
-            <p>Гонка на наших велосипедах и станках, там же — награждение. Велики паркуем на улице.</p>
-          </div>
-        </li>
-        <li class="route__step">
-          <span class="route__num">03</span>
-          <div>
-            <h2>Halloween <span class="tag">bass_u x werk</span></h2>
-            <p>Туса в самом верке. Возьмите сменку под стрепы и под танцы.</p>
-          </div>
-        </li>
-      </ol>
-    </section>
+      <section class="intro">
+        <p class="lead">На закрытие мы подготовили для вас сразу два эвента, и один плавно перетекает в другой.</p>
 
-    <section class="price" aria-labelledby="price-title">
-      <h2 id="price-title" class="section-title">Участие</h2>
-      <div class="price__grid">
-        <div class="price__card">
-          <span class="price__label">до 26 октября</span>
-          <span class="price__value">300 ₽</span>
+        <ol class="route">
+          <li class="route__step">
+            <span class="route__num">01</span>
+            <div>
+              <h2>Аллейкат <span class="tag tag--acid">21:00</span></h2>
+              <p>По городу развешены QR-коды. Адреса всех точек появятся здесь в 21:00. Сканируешь код на месте — очки засчитываются зарегистрированным: вход по нику из Telegram. <strong>Шлем обязателен.</strong></p>
+            </div>
+          </li>
+          <li class="route__step">
+            <span class="route__num">02</span>
+            <div>
+              <h2>Голдспринт</h2>
+              <p>Гонка на наших велосипедах и станках, там же — награждение. Велики паркуем на улице.</p>
+            </div>
+          </li>
+          <li class="route__step">
+            <span class="route__num">03</span>
+            <div>
+              <h2>Halloween <span class="tag">bass_u x werk</span></h2>
+              <p>Последняя точка аллейката и туса в самом верке. Возьмите сменку под стрепы и под танцы.</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="price" aria-labelledby="price-title">
+        <h2 id="price-title" class="section-title">Участие</h2>
+        <div class="price__grid">
+          <div class="price__card">
+            <span class="price__label">до 26 октября</span>
+            <span class="price__value">300 ₽</span>
+          </div>
+          <div class="price__card">
+            <span class="price__label">с понедельника, 26 октября</span>
+            <span class="price__value">600 ₽</span>
+          </div>
+          <div class="price__card price__card--free">
+            <span class="price__label">девушки</span>
+            <span class="price__value">бесплатно</span>
+          </div>
         </div>
-        <div class="price__card">
-          <span class="price__label">с понедельника, 26 октября</span>
-          <span class="price__value">600 ₽</span>
+        <div class="pay">
+          <p>Оплата онлайн — перевод Сбербанк по номеру</p>
+          <button type="button" class="pay__phone" id="copy-phone" data-phone="+79966061200">
+            <span>+7 996 606-12-00</span>
+            <small id="copy-hint">Тимур · нажми, чтобы скопировать</small>
+          </button>
         </div>
-        <div class="price__card price__card--free">
-          <span class="price__label">девушки</span>
-          <span class="price__value">бесплатно</span>
+      </section>
+
+      <form class="form" id="reg-form" novalidate>
+        <h2 class="section-title">Регистрация</h2>
+        <p class="form__note"><span class="req">*</span> — обязательные поля · закрывается 30.10 в 21:00</p>
+
+        <div class="field" data-field="telegram">
+          <label class="field__label" for="telegram">Ник в Telegram <span class="req">*</span></label>
+          <div class="field__input field__input--prefixed">
+            <span class="field__prefix" aria-hidden="true">@</span>
+            <input id="telegram" name="telegram" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="username" required>
+          </div>
+          <p class="field__error" role="alert"></p>
         </div>
-      </div>
-      <div class="pay">
-        <p>Оплата онлайн — перевод Сбербанк по номеру</p>
-        <button type="button" class="pay__phone" id="copy-phone" data-phone="+79966061200">
-          <span>+7 996 606-12-00</span>
-          <small id="copy-hint">Тимур · нажми, чтобы скопировать</small>
+
+        <fieldset class="field" data-field="gender">
+          <legend class="field__label">Пол <span class="req">*</span></legend>
+          <div class="choice">
+            <label class="choice__item">
+              <input type="radio" name="gender" value="М" required>
+              <span>М</span>
+            </label>
+            <label class="choice__item">
+              <input type="radio" name="gender" value="Ж">
+              <span>Ж</span>
+            </label>
+          </div>
+          <p class="field__hint" id="gender-hint" hidden>Для девушек участие бесплатное — поле оплаты можно заполнить «бесплатно».</p>
+          <p class="field__error" role="alert"></p>
+        </fieldset>
+
+        <div class="field" data-field="payment">
+          <label class="field__label" for="payment">Источник оплаты <span class="req">*</span></label>
+          <p class="field__hint">Укажите, с чьей карты / от кого пришёл перевод, чтобы мы нашли платёж.</p>
+          <div class="field__input">
+            <input id="payment" name="payment" type="text" autocomplete="off" placeholder="например: Иван И., Тинькофф" required>
+          </div>
+          <p class="field__error" role="alert"></p>
+        </div>
+
+        <button class="submit" type="submit">
+          <span class="submit__text">Я в деле</span>
+          <span class="submit__spinner" aria-hidden="true"></span>
         </button>
-      </div>
-    </section>
+      </form>
 
-    <form class="form" id="reg-form" novalidate>
-      <h2 class="section-title">Регистрация</h2>
-      <p class="form__note"><span class="req">*</span> — обязательные поля</p>
+      <section class="done" id="done" hidden tabindex="-1">
+        <div class="done__pumpkin" aria-hidden="true">🎃</div>
+        <h2>Ты в списке!</h2>
+        <p>30 октября в 21:00 заходи сюда с этого телефона — появятся точки маршрута. Не забудь шлем.</p>
+        <button type="button" class="link-btn" id="again">Отправить ещё один ответ</button>
+      </section>
+    </div>
 
-      <div class="field" data-field="telegram">
-        <label class="field__label" for="telegram">Ник в Telegram <span class="req">*</span></label>
-        <div class="field__input field__input--prefixed">
-          <span class="field__prefix" aria-hidden="true">@</span>
-          <input id="telegram" name="telegram" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="username" required>
+    <!-- ===== с 21:00: гонка ===== -->
+    <div class="view" id="race-view" hidden>
+      <section class="live">
+        <span class="live__dot" aria-hidden="true"></span>
+        <p class="live__text">Аллейкат идёт · <span id="race-clock">21:00</span></p>
+        <p class="live__sub">Регистрация закрыта</p>
+      </section>
+
+      <!-- гость: точки видны, но сканы не засчитываются -->
+      <section class="join" id="race-join">
+        <h2>Участвуешь в гонке?</h2>
+        <p>Войди ником из регистрации — тогда сканы будут засчитываться и ты попадёшь в топ.</p>
+        <form class="join__form" id="login-form" novalidate>
+          <div class="field__input field__input--prefixed">
+            <span class="field__prefix" aria-hidden="true">@</span>
+            <input id="login-nick" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="username" aria-label="Ник в Telegram">
+          </div>
+          <button class="submit submit--small" type="submit">Войти</button>
+        </form>
+        <p class="field__error" id="login-error" role="alert"></p>
+      </section>
+
+      <!-- точки и топ — видны всем -->
+      <section id="race-open">
+        <div class="me" id="me" hidden></div>
+
+        <div class="tabs" role="tablist">
+          <button class="tabs__btn is-active" role="tab" aria-selected="true" data-tab="points">Точки</button>
+          <button class="tabs__btn" role="tab" aria-selected="false" data-tab="top">Топ</button>
         </div>
-        <p class="field__error" role="alert"></p>
-      </div>
 
-      <fieldset class="field" data-field="gender">
-        <legend class="field__label">Пол <span class="req">*</span></legend>
-        <div class="choice">
-          <label class="choice__item">
-            <input type="radio" name="gender" value="М" required>
-            <span>М</span>
-          </label>
-          <label class="choice__item">
-            <input type="radio" name="gender" value="Ж">
-            <span>Ж</span>
-          </label>
+        <div class="tab" id="tab-points">
+          <details class="howto">
+            <summary>Как это работает</summary>
+            <ol>
+              <li>Доезжаешь до точки и находишь QR-код.</li>
+              <li>Сканируешь его камерой телефона — откроется этот сайт.</li>
+              <li>Разрешаешь геолокацию: скан засчитывается, только если ты рядом с точкой.</li>
+              <li>Очки = ценность точки (×1…×5). При равенстве очков выше тот, кто набрал их раньше.</li>
+            </ol>
+          </details>
+          <ul class="cps" id="cps"></ul>
         </div>
-        <p class="field__hint" id="gender-hint" hidden>Для девушек участие бесплатное — поле оплаты можно заполнить «бесплатно».</p>
-        <p class="field__error" role="alert"></p>
-      </fieldset>
 
-      <div class="field" data-field="payment">
-        <label class="field__label" for="payment">Источник оплаты <span class="req">*</span></label>
-        <p class="field__hint">Укажите, с чьей карты / от кого пришёл перевод, чтобы мы нашли платёж.</p>
-        <div class="field__input">
-          <input id="payment" name="payment" type="text" autocomplete="off" placeholder="например: Иван И., Тинькофф" required>
+        <div class="tab" id="tab-top" hidden>
+          <ol class="board" id="board"></ol>
         </div>
-        <p class="field__error" role="alert"></p>
-      </div>
-
-      <button class="submit" type="submit">
-        <span class="submit__text">Я в деле</span>
-        <span class="submit__spinner" aria-hidden="true"></span>
-      </button>
-      <p class="form__status" id="form-status" role="status"></p>
-    </form>
-
-    <section class="done" id="done" hidden tabindex="-1">
-      <div class="done__pumpkin" aria-hidden="true">🎃</div>
-      <h2>Ты в списке!</h2>
-      <p>Ответ записан. Увидимся на старте — не забудь шлем.</p>
-      <button type="button" class="link-btn" id="again">Отправить ещё один ответ</button>
-    </section>
+      </section>
+    </div>
   </main>
+
+  <!-- ===== результат скана QR ===== -->
+  <div class="sheet" id="scan-sheet" hidden>
+    <div class="sheet__card" role="dialog" aria-modal="true" aria-labelledby="scan-title" tabindex="-1">
+      <p class="sheet__step" id="scan-step">Проверяем геолокацию…</p>
+      <div class="sheet__icon" id="scan-icon" aria-hidden="true">📍</div>
+      <h2 id="scan-title">Точка</h2>
+      <p id="scan-text"></p>
+      <button type="button" class="submit submit--small" id="scan-close">К точкам</button>
+    </div>
+  </div>
+
+  <!-- переключатель состояний — только для макета -->
+  <nav class="demo" aria-label="Состояния макета">
+    <span class="demo__label">макет</span>
+    <button type="button" data-demo="reg">До 21:00</button>
+    <button type="button" data-demo="guest">21:00 · без входа</button>
+    <button type="button" data-demo="racer">21:00 · участник</button>
+    <button type="button" data-demo="scan-ok">Скан ✓</button>
+    <button type="button" data-demo="scan-far">Скан ✗</button>
+    <button type="button" data-demo="scan-guest">Скан без входа</button>
+  </nav>
 
   <footer class="footer">
     <p>FGK CloseSeason 26 · 18+</p>
   </footer>
 
+  <script src="data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
