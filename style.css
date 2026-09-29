@@ -94,6 +94,23 @@ h1, h2, h3 { margin: 0; }
 }
 @keyframes ticker { to { transform: translateX(-50%); } }
 
+/* дата в стиле плёночной датировки на фото */
+.hero__date {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px;
+  margin: 18px 0 0;
+}
+.hero__date time {
+  font: 400 clamp(30px, 6vw, 48px)/1 "Share Tech Mono", ui-monospace, monospace;
+  letter-spacing: .06em;
+  color: #ffb13b;
+  text-shadow: 0 0 6px rgba(255,140,30,.75), 0 0 22px rgba(255,106,19,.45);
+}
+.hero__date span {
+  color: var(--muted);
+  font: 600 14px/1 var(--body);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+
 /* ---------- layout ---------- */
 .wrap {
   max-width: 720px;
