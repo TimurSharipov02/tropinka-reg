@@ -43,7 +43,8 @@ h1, h2, h3 { margin: 0; }
 /* кадр целиком, без обрезки — важны и края, и дата в углу */
 .hero__photo {
   margin: 0 auto;
-  max-width: 960px;
+  /* кадр 920×598: по высоте не больше ~62% экрана, чтобы заголовок был виден сразу */
+  max-width: min(960px, calc(62vh * 920 / 598));
 }
 .hero__photo img {
   width: 100%; height: auto;
