@@ -23,7 +23,7 @@ var SHEETS = {
 
 var HEADERS = {
   regs: ["Время", "Ник", "Пол", "Источник оплаты", "Сумма, ₽", "Оплачено", "Допуск"],
-  points: ["ID", "Название", "Адрес", "Широта", "Долгота", "Ценность", "Финиш", "Секрет", "Ссылка для QR", "QR"],
+  points: ["ID", "Название", "Адрес", "Координаты", "Ценность", "Финиш", "Секрет", "Ссылка для QR", "QR", "Описание", "Фото"],
   scans: ["Время", "Ник", "Точка", "Очки", "Расстояние, м", "Точность, м", "Статус"],
 };
 
@@ -36,6 +36,9 @@ var DEFAULT_SETTINGS = [
   ["Повышение цены", "2026-10-26T00:00:00+03:00"],
   ["Гонка только после оплаты", "нет"],
 ];
+
+// колонки листа «Точки» (с нуля)
+var P = { id: 0, name: 1, address: 2, coords: 3, value: 4, final: 5, secret: 6, link: 7, qr: 8, description: 9, photo: 10 };
 
 var COL_PAID = 6; // колонка «Оплачено» на листе «Регистрации»
 var YES = /^(да|yes|1|true|x|✓)$/i;
@@ -238,21 +241,43 @@ function readPoints_() {
   return rows_("points")
     .filter(function (r) { return String(r[0]).trim(); })
     .map(function (r) {
+      var c = parseCoords_(r[P.coords]);
       return {
-        id: String(r[0]).trim(),
-        name: String(r[1]).trim(),
-        address: String(r[2]).trim(),
-        lat: Number(r[3]),
-        lng: Number(r[4]),
-        value: Number(r[5]) || 1,
-        final: YES.test(String(r[6]).trim()),
-        secret: String(r[7]).trim(),
+        id: String(r[P.id]).trim(),
+        name: String(r[P.name]).trim(),
+        address: String(r[P.address]).trim(),
+        lat: c.lat,
+        lng: c.lng,
+        value: Number(r[P.value]) || 1,
+        final: YES.test(String(r[P.final]).trim()),
+        secret: String(r[P.secret]).trim(),
+        description: String(r[P.description] || "").trim(),
+        photo: photoUrl_(r[P.photo]),
       };
     });
 }
 
+// «55.752000, 37.617500» — как копируют из Яндекс и Google Карт (подойдёт и «55,752; 37,6175»)
+function parseCoords_(v) {
+  var m = String(v || "").match(/(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)/);
+  if (!m) return { lat: NaN, lng: NaN };
+  return { lat: Number(m[1].replace(",", ".")), lng: Number(m[2].replace(",", ".")) };
+}
+
 function publicPoint_(p) {
-  return { id: p.id, name: p.name, address: p.address, lat: p.lat, lng: p.lng, value: p.value, final: p.final };
+  return {
+    id: p.id, name: p.name, address: p.address, lat: p.lat, lng: p.lng, value: p.value, final: p.final,
+    description: p.description, photo: p.photo,
+  };
+}
+
+// Ссылку «поделиться» из Google Диска превращаем в картинку, которую можно показать на сайте
+// (файл должен быть доступен «всем, у кого есть ссылка»). Прочие ссылки — как есть.
+function photoUrl_(v) {
+  var url = String(v || "").trim();
+  if (!/^https?:\/\//.test(url)) return "";
+  var m = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]{20,})/);
+  return m ? "https://drive.google.com/thumbnail?id=" + m[1] + "&sz=w1200" : url;
 }
 
 function readScans_() {
@@ -366,11 +391,17 @@ function setup() {
   ensure(SHEETS.regs, HEADERS.regs);
   ensure(SHEETS.scans, HEADERS.scans);
   var pts = ensure(SHEETS.points, HEADERS.points);
+  migratePointsCoords_(pts);
+  // новые колонки дописываем в конец, ничего не сдвигая
+  var head = pts.getRange(1, 1, 1, Math.max(pts.getLastColumn(), 1)).getValues()[0].map(String);
+  HEADERS.points.forEach(function (h, i) {
+    if (head.indexOf(h) < 0 && !String(head[i] || "").trim()) pts.getRange(1, i + 1).setValue(h).setFontWeight("bold");
+  });
   if (pts.getLastRow() === 1) {
-    pts.getRange(2, 1, 3, 7).setValues([
-      ["c1", "Пример: мост", "Набережная, 1", 55.752, 37.6175, 1, ""],
-      ["c2", "Пример: смотровая", "Лесная, 27", 55.765, 37.598, 2, ""],
-      ["fin", "bass_u x werk", "Клуб · награждение и туса", 55.7555, 37.632, 5, "да"],
+    pts.getRange(2, 1, 3, 6).setValues([
+      ["c1", "Пример: мост", "Набережная, 1", "55.752000, 37.617500", 1, ""],
+      ["c2", "Пример: смотровая", "Лесная, 27", "55.765000, 37.598000", 2, ""],
+      ["fin", "bass_u x werk", "Клуб · награждение и туса", "55.755500, 37.632000", 5, "да"],
     ]);
   }
   refreshQr();
@@ -417,6 +448,22 @@ function importFormResponses() {
   });
 }
 
+/** Старый лист с «Широта» и «Долгота» → одна колонка «Координаты». Остальное сдвигается целиком. */
+function migratePointsCoords_(sh) {
+  if (sh.getLastColumn() < 5) return;
+  var head = sh.getRange(1, 4, 1, 2).getValues()[0].map(function (h) { return String(h).trim(); });
+  if (head[0] !== "Широта" || head[1] !== "Долгота") return;
+  var n = sh.getLastRow() - 1;
+  if (n > 0) {
+    var rows = sh.getRange(2, 4, n, 2).getValues().map(function (r) {
+      return [String(r[0]).trim() && String(r[1]).trim() ? r[0] + ", " + r[1] : ""];
+    });
+    sh.getRange(2, 4, n, 1).setNumberFormat("@").setValues(rows);
+  }
+  sh.getRange(1, 4).setValue("Координаты");
+  sh.deleteColumn(5);
+}
+
 /** Дозаполняет секреты, ссылки для QR и картинки QR у всех точек. */
 function refreshQr() {
   var site = settings_().site.replace(/\/?$/, "/");
@@ -426,12 +473,12 @@ function refreshQr() {
   var range = sh.getRange(2, 1, n, HEADERS.points.length);
   var rows = range.getValues();
   rows.forEach(function (r, i) {
-    if (!String(r[0]).trim()) return;
-    if (!String(r[7]).trim()) r[7] = Utilities.getUuid().replace(/-/g, "").slice(0, 12);
-    r[8] = site + "?cp=" + encodeURIComponent(String(r[0]).trim()) + "&k=" + r[7];
-    r[9] = '=IMAGE("https://quickchart.io/qr?size=300&margin=1&text=" & ENCODEURL(I' + (i + 2) + "))";
+    if (!String(r[P.id]).trim()) return;
+    if (!String(r[P.secret]).trim()) r[P.secret] = Utilities.getUuid().replace(/-/g, "").slice(0, 12);
+    r[P.link] = site + "?cp=" + encodeURIComponent(String(r[P.id]).trim()) + "&k=" + r[P.secret];
+    r[P.qr] = '=IMAGE("https://quickchart.io/qr?size=300&margin=1&text=" & ENCODEURL(H' + (i + 2) + "))";
   });
   range.setValues(rows);
   sh.setRowHeights(2, n, 120);
-  sh.setColumnWidth(10, 130);
+  sh.setColumnWidth(P.qr + 1, 130);
 }

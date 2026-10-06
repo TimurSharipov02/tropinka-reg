@@ -222,11 +222,16 @@
         const map = "https://yandex.ru/maps/?pt=" + c.lng + "," + c.lat + "&z=17&l=map";
         return (
           '<li class="cp' + (c.final ? " cp--final" : "") + (t ? " cp--done" : "") + '">' +
+          (c.photo
+            ? '<a class="cp__photo" href="' + esc(c.photo) + '" target="_blank" rel="noopener">' +
+              '<img src="' + esc(c.photo) + '" alt="' + esc(c.name) + '" loading="lazy" onerror="this.parentNode.remove()"></a>'
+            : "") +
           '<span class="cp__value" title="ценность точки">×' + c.value + "</span>" +
           '<div class="cp__body">' +
           (c.final ? '<span class="cp__flag">финиш</span>' : "") +
           "<h3>" + esc(c.name) + "</h3>" +
           "<p>" + esc(c.address) + "</p>" +
+          (c.description ? '<p class="cp__desc">' + esc(c.description) + "</p>" : "") +
           '<a class="cp__map" href="' + map + '" target="_blank" rel="noopener">на карте ↗</a>' +
           "</div>" +
           '<span class="cp__status">' + (t ? "✓ " + fmtTime(t) : user ? "не взята" : "") + "</span>" +

@@ -33,7 +33,9 @@ assert.equal(S('Регистрации').data.length,5);
 assert.equal(post({action:'login',nick:'@FIXIE_MASHA'}).nick,'fixie_masha');
 assert.equal(post({action:'login',nick:'nobody'}).ok,false);
 assert.match(post({action:'login',nick:'blocked_guy'}).error,/не допущен/);
-const pts=S('Точки').data.slice(1); const [c1,c2,fin]=pts; 
+const pts=S('Точки').data.slice(1); // старый вид строки [.., .., .., lat, lng, .., .., secret] — чтобы не переписывать проверки ниже
+const old=r=>{const [la,ln]=r[3].split(',').map(Number);return [r[0],r[1],r[2],la,ln,r[4],r[5],r[6]];};
+const [c1,c2,fin]=pts.map(old); 
 let r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:10}); assert.equal(r.ok,false); assert.match(r.error,/старта/);
 setStart(Date.now()-60e3);
 assert.equal(post({action:'register',telegram:'late',gender:'М',payment:'x'}).ok,false);
@@ -58,6 +60,27 @@ const before=JSON.stringify(S('Настройки').data); ctx.setup(); assert.e
 r=post({action:'scan',nick:'fixie_masha',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:5}); 
 st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],['fixie_masha',3]],'tie: earlier first');
 
+
+// описание, фото и координаты точек; перестройка старого листа
+{ const {load:l4}=require('./gas-mock'); const g4=l4();
+  const pts=g4.ctx.SpreadsheetApp.getActive().insertSheet('Точки');
+  pts.data=[["ID","Название","Адрес","Широта","Долгота","Ценность","Финиш","Секрет","Ссылка для QR","QR"],["c1","Мост","Наб., 1",55.75,37.61,2,"","sec1","",""]];
+  g4.ctx.setup();
+  assert.deepEqual(pts.data[0],["ID","Название","Адрес","Координаты","Ценность","Финиш","Секрет","Ссылка для QR","QR","Описание","Фото"]);
+  assert.deepEqual(pts.data[1].slice(0,7),["c1","Мост","Наб., 1","55.75, 37.61",2,"","sec1"],'секрет и ценность на месте');
+  g4.ctx.setup(); assert.equal(pts.data[0].length,11,'повторный setup ничего не ломает');
+  pts.data[1][9]='Под мостом, у третьей опоры';
+  pts.data[1][10]='https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view?usp=sharing';
+  pts.data.push(["c2","Б","","55.765000, 37.598000",1,"","sec2","","","","https://example.com/p.jpg"],["c3","В","","55,7; 37,6",1,"да","sec3","","","","не ссылка"]);
+  g4.ctx.refreshQr(); assert.match(pts.data[2][7],/\?cp=c2&k=sec2$/); assert.match(pts.data[2][8],/ENCODEURL\(H3\)/);
+  g4.sheets['Настройки'].data.find(r=>r[0]==='Старт')[1]=new Date(Date.now()-1000).toISOString();
+  const cps=JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints;
+  assert.deepEqual([cps[0].lat,cps[0].lng,cps[0].value],[55.75,37.61,2]);
+  assert.deepEqual([cps[1].lat,cps[1].lng],[55.765,37.598]); assert.deepEqual([cps[2].lat,cps[2].lng,cps[2].final],[55.7,37.6,true]);
+  assert.equal(cps[0].description,'Под мостом, у третьей опоры');
+  assert.equal(cps[0].photo,'https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOpQrStUvWxYz012345&sz=w1200');
+  assert.equal(cps[1].photo,'https://example.com/p.jpg'); assert.equal(cps[2].photo,''); assert.equal(cps[1].description,'');
+}
 
 // без setup — понятная ошибка
 { const {load:l3}=require('./gas-mock'); const g3=l3();
