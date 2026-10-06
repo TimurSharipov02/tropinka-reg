@@ -66,9 +66,9 @@ st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],
   const pts=g4.ctx.SpreadsheetApp.getActive().insertSheet('Точки');
   pts.data=[["ID","Название","Адрес","Широта","Долгота","Ценность","Финиш","Секрет","Ссылка для QR","QR"],["c1","Мост","Наб., 1",55.75,37.61,2,"","sec1","",""]];
   g4.ctx.setup();
-  assert.deepEqual(pts.data[0],["ID","Название","Адрес","Координаты","Ценность","Финиш","Секрет","Ссылка для QR","QR","Описание","Фото"]);
+  assert.deepEqual(pts.data[0],["ID","Название","Адрес","Координаты","Ценность","Финиш","Секрет","Ссылка для QR","QR","Описание","Фото","Фото для сайта"]);
   assert.deepEqual(pts.data[1].slice(0,7),["c1","Мост","Наб., 1","55.75, 37.61",2,"","sec1"],'секрет и ценность на месте');
-  g4.ctx.setup(); assert.equal(pts.data[0].length,11,'повторный setup ничего не ломает');
+  g4.ctx.setup(); assert.equal(pts.data[0].length,12,'повторный setup ничего не ломает');
   pts.data[1][9]='Под мостом, у третьей опоры';
   pts.data[1][10]='https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view?usp=sharing';
   pts.data.push(["c2","Б","","55.765000, 37.598000",1,"","sec2","","","","https://example.com/p.jpg"],["c3","В","","55,7; 37,6",1,"да","sec3","","","","не ссылка"]);
@@ -80,6 +80,21 @@ st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],
   assert.equal(cps[0].description,'Под мостом, у третьей опоры');
   assert.equal(cps[0].photo,'https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOpQrStUvWxYz012345&sz=w1200');
   assert.equal(cps[1].photo,'https://example.com/p.jpg'); assert.equal(cps[2].photo,''); assert.equal(cps[1].description,'');
+
+  // фото, вставленное прямо в ячейку
+  const img={getContentUrl:()=>'https://lh3.googleusercontent.com/tmp-image'};
+  pts.data[3][10]=img; pts.data[3][9]='описание'; g4.ctx.refreshQr();
+  assert.equal(g4.drive.files.length,1); assert.equal(g4.drive.files[0].name,'точка c3');
+  assert.match(pts.data[3][11],/^https:\/\/drive\.google\.com\/file\/d\/file0+1\/view$/);
+  assert.equal(pts.data[3][10],img,'ячейку с фото не трогаем'); assert.equal(pts.data[3][9],'описание');
+  g4.cache.clear(); let c3=JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[2];
+  assert.equal(c3.photo,'https://drive.google.com/thumbnail?id=file00000000000000000001&sz=w1200');
+  // повторное обновление: новая копия, старая — в корзину; одна папка
+  g4.ctx.refreshQr(); assert.equal(g4.drive.files.length,2); assert.deepEqual(g4.drive.trashed,['file00000000000000000001']); assert.equal(g4.drive.folder,1);
+  // фото убрали из ячейки — копия тоже уходит, сайт показывает без фото
+  pts.data[3][10]=''; g4.ctx.refreshQr(); assert.equal(pts.data[3][11],''); assert.equal(g4.drive.trashed.length,2);
+  // ссылка-строка в «Фото» по-прежнему работает
+  g4.cache.clear(); assert.equal(JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[1].photo,'https://example.com/p.jpg');
 }
 
 // без setup — понятная ошибка

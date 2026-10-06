@@ -21,17 +21,22 @@ class Sheet {
 }
 function load(){
   const sheets={};
-  const cache=new Map(), props={}, triggers=[];
+  const cache=new Map(), props={}, triggers=[], drive={folder:0,n:0,files:[],trashed:[],fetched:[]};
   const ctx={console,JSON,Math,Date,Number,String,Object,Error,isFinite,encodeURIComponent,
     SpreadsheetApp:{getActive:()=>({getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new Sheet(n)),getSheets:()=>Object.values(sheets)})},
     PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]??null,setProperty:(k,v)=>{props[k]=v;}})},
-    ScriptApp:{getProjectTriggers:()=>triggers,newTrigger:h=>({forSpreadsheet:()=>({onFormSubmit:()=>({create:()=>triggers.push({getHandlerFunction:()=>h})})})})},
+    ScriptApp:{getOAuthToken:()=>'tok',getProjectTriggers:()=>triggers,newTrigger:h=>({forSpreadsheet:()=>({onFormSubmit:()=>({create:()=>triggers.push({getHandlerFunction:()=>h})})})})},
     CacheService:{getScriptCache:()=>({get:k=>{const e=cache.get(k);return e&&e.exp>Date.now()?e.v:null;},put:(k,v,s)=>cache.set(k,{v,exp:Date.now()+s*1000}),remove:k=>cache.delete(k)})},
     LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock(){}})},
     ContentService:{MimeType:{JSON:'json'},createTextOutput:s=>({s,setMimeType(){return this;}})},
-    Utilities:{getUuid:()=>crypto.randomUUID()}};
+    Utilities:{getUuid:()=>crypto.randomUUID()},
+    UrlFetchApp:{fetch:(url)=>{drive.fetched.push(url);return {getBlob:()=>({setName(n){this.name=n;return this;}})};}},
+    DriveApp:{Access:{ANYONE_WITH_LINK:'any'},Permission:{VIEW:'view'},
+      getFoldersByName:()=>({hasNext:()=>drive.folder>0,next:()=>folderObj}),createFolder:()=>{drive.folder++;return folderObj;},
+      getFileById:id=>({setTrashed:()=>drive.trashed.push(id)})}};
+  const folderObj={createFile:b=>{const id='file'+String(++drive.n).padStart(20,'0');drive.files.push({id,name:b.name});return {getId:()=>id,setSharing:()=>{}};}};
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(require('path').join(__dirname, '..', 'Code.gs'),'utf8'),ctx);
-  return {ctx,sheets,cache,props,triggers,Sheet};
+  return {ctx,sheets,cache,props,triggers,drive,Sheet};
 }
 module.exports={load,Sheet};

@@ -23,7 +23,7 @@ var SHEETS = {
 
 var HEADERS = {
   regs: ["Время", "Ник", "Пол", "Источник оплаты", "Сумма, ₽", "Оплачено", "Допуск"],
-  points: ["ID", "Название", "Адрес", "Координаты", "Ценность", "Финиш", "Секрет", "Ссылка для QR", "QR", "Описание", "Фото"],
+  points: ["ID", "Название", "Адрес", "Координаты", "Ценность", "Финиш", "Секрет", "Ссылка для QR", "QR", "Описание", "Фото", "Фото для сайта"],
   scans: ["Время", "Ник", "Точка", "Очки", "Расстояние, м", "Точность, м", "Статус"],
 };
 
@@ -38,7 +38,8 @@ var DEFAULT_SETTINGS = [
 ];
 
 // колонки листа «Точки» (с нуля)
-var P = { id: 0, name: 1, address: 2, coords: 3, value: 4, final: 5, secret: 6, link: 7, qr: 8, description: 9, photo: 10 };
+var P = { id: 0, name: 1, address: 2, coords: 3, value: 4, final: 5, secret: 6, link: 7, qr: 8, description: 9, photo: 10, photoSite: 11 };
+var PHOTO_FOLDER = "FGK CloseSeason 26 — фото точек";
 
 var COL_PAID = 6; // колонка «Оплачено» на листе «Регистрации»
 var YES = /^(да|yes|1|true|x|✓)$/i;
@@ -252,7 +253,7 @@ function readPoints_() {
         final: YES.test(String(r[P.final]).trim()),
         secret: String(r[P.secret]).trim(),
         description: String(r[P.description] || "").trim(),
-        photo: photoUrl_(r[P.photo]),
+        photo: photoUrl_(r[P.photoSite]) || photoUrl_(r[P.photo]),
       };
     });
 }
@@ -361,7 +362,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Аллейкат")
     .addItem("Первичная настройка", "setup")
-    .addItem("Обновить ссылки и QR точек", "refreshQr")
+    .addItem("Обновить ссылки, QR и фото точек", "refreshQr")
     .addToUi();
 }
 
@@ -464,21 +465,62 @@ function migratePointsCoords_(sh) {
   sh.deleteColumn(5);
 }
 
-/** Дозаполняет секреты, ссылки для QR и картинки QR у всех точек. */
+/**
+ * Дозаполняет секреты, ссылки и QR у всех точек и выкладывает фото,
+ * вставленные прямо в ячейку «Фото», чтобы сайт мог их показать.
+ * Пишем только служебные колонки — то, что заполнил организатор, не трогаем.
+ */
 function refreshQr() {
   var site = settings_().site.replace(/\/?$/, "/");
   var sh = sheet_("points");
   var n = sh.getLastRow() - 1;
   if (n < 1) return;
-  var range = sh.getRange(2, 1, n, HEADERS.points.length);
-  var rows = range.getValues();
-  rows.forEach(function (r, i) {
-    if (!String(r[P.id]).trim()) return;
-    if (!String(r[P.secret]).trim()) r[P.secret] = Utilities.getUuid().replace(/-/g, "").slice(0, 12);
-    r[P.link] = site + "?cp=" + encodeURIComponent(String(r[P.id]).trim()) + "&k=" + r[P.secret];
-    r[P.qr] = '=IMAGE("https://quickchart.io/qr?size=300&margin=1&text=" & ENCODEURL(H' + (i + 2) + "))";
+  var rows = sh.getRange(2, 1, n, HEADERS.points.length).getValues();
+
+  var service = rows.map(function (r, i) {
+    if (!String(r[P.id]).trim()) return [r[P.secret], r[P.link], r[P.qr]];
+    var secret = String(r[P.secret]).trim() || Utilities.getUuid().replace(/-/g, "").slice(0, 12);
+    return [
+      secret,
+      site + "?cp=" + encodeURIComponent(String(r[P.id]).trim()) + "&k=" + secret,
+      '=IMAGE("https://quickchart.io/qr?size=300&margin=1&text=" & ENCODEURL(H' + (i + 2) + "))",
+    ];
   });
-  range.setValues(rows);
+  sh.getRange(2, P.secret + 1, n, 3).setValues(service);
+
+  var photos = rows.map(function (r) { return [syncPhoto_(r)]; });
+  sh.getRange(2, P.photoSite + 1, n, 1).setValues(photos);
+
   sh.setRowHeights(2, n, 120);
   sh.setColumnWidth(P.qr + 1, 130);
+}
+
+// Фото, вставленное в ячейку («Вставка → Изображение → Изображение в ячейке»),
+// сохраняем на Диск с доступом по ссылке; в ответ — ссылка для сайта.
+function syncPhoto_(r) {
+  var cell = r[P.photo];
+  var old = String(r[P.photoSite] || "").trim();
+  var isImage = cell && typeof cell === "object" && typeof cell.getContentUrl === "function";
+  if (!isImage) {
+    trashPhoto_(old);
+    return "";
+  }
+  var blob = UrlFetchApp.fetch(cell.getContentUrl(), {
+    headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
+  }).getBlob().setName("точка " + String(r[P.id]).trim());
+  var file = photoFolder_().createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  trashPhoto_(old); // прошлую версию фото этой точки убираем, чтобы не копились
+  return "https://drive.google.com/file/d/" + file.getId() + "/view";
+}
+
+function trashPhoto_(link) {
+  var m = String(link || "").match(/\/d\/([\w-]{20,})/);
+  if (!m) return;
+  try { DriveApp.getFileById(m[1]).setTrashed(true); } catch (e) { /* уже удалён */ }
+}
+
+function photoFolder_() {
+  var it = DriveApp.getFoldersByName(PHOTO_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(PHOTO_FOLDER);
 }
