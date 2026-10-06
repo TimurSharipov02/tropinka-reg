@@ -220,7 +220,7 @@ function settings_() {
   var map = {};
   rows.forEach(function (r) { map[String(r[0]).trim()] = r[1]; });
   var start = map["Старт"] instanceof Date ? map["Старт"].getTime() : Date.parse(String(map["Старт"]));
-  if (!isFinite(start)) throw new Error("В «Настройках» неверное время старта");
+  if (!isFinite(start)) throw userError_("Сервер не настроен: в «Настройках» неверное время старта");
   var change = map["Повышение цены"];
   change = change instanceof Date ? change.getTime() : Date.parse(String(change));
   return {
@@ -320,7 +320,7 @@ function withLock_(fn) {
 
 function sheet_(key) {
   var sh = SpreadsheetApp.getActive().getSheetByName(SHEETS[key]);
-  if (!sh) throw new Error("Нет листа «" + SHEETS[key] + "» — запусти «Аллейкат → Первичная настройка»");
+  if (!sh) throw userError_("Сервер не настроен: нет листа «" + SHEETS[key] + "». Запустите функцию setup в Apps Script");
   return sh;
 }
 

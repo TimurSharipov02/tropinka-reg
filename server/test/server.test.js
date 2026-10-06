@@ -59,6 +59,10 @@ r=post({action:'scan',nick:'fixie_masha',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],acc
 st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],['fixie_masha',3]],'tie: earlier first');
 
 
+// без setup — понятная ошибка
+{ const {load:l3}=require('./gas-mock'); const g3=l3();
+  assert.match(JSON.parse(g3.ctx.doGet({parameter:{action:'state'}}).s).error,/setup/); }
+
 // ===== таблица ответов Google Формы =====
 {
   const {load:load2}=require('./gas-mock');
