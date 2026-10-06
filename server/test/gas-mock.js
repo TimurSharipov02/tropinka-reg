@@ -3,6 +3,7 @@ const vm = require('vm'), fs = require('fs'), crypto = require('crypto');
 function colIdx(a){return a.toUpperCase().split('').reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);}
 class Sheet {
   constructor(name){this.name=name;this.data=[];}
+  getName(){return this.name;}
   appendRow(r){this.data.push(r.slice());}
   getLastRow(){return this.data.length;}
   getLastColumn(){return Math.max(0,...this.data.map(r=>r.length));}
@@ -19,15 +20,17 @@ class Sheet {
 }
 function load(){
   const sheets={};
-  const cache=new Map();
+  const cache=new Map(), props={}, triggers=[];
   const ctx={console,JSON,Math,Date,Number,String,Object,Error,isFinite,encodeURIComponent,
-    SpreadsheetApp:{getActive:()=>({getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new Sheet(n))})},
+    SpreadsheetApp:{getActive:()=>({getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new Sheet(n)),getSheets:()=>Object.values(sheets)})},
+    PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]??null,setProperty:(k,v)=>{props[k]=v;}})},
+    ScriptApp:{getProjectTriggers:()=>triggers,newTrigger:h=>({forSpreadsheet:()=>({onFormSubmit:()=>({create:()=>triggers.push({getHandlerFunction:()=>h})})})})},
     CacheService:{getScriptCache:()=>({get:k=>{const e=cache.get(k);return e&&e.exp>Date.now()?e.v:null;},put:(k,v,s)=>cache.set(k,{v,exp:Date.now()+s*1000}),remove:k=>cache.delete(k)})},
     LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock(){}})},
     ContentService:{MimeType:{JSON:'json'},createTextOutput:s=>({s,setMimeType(){return this;}})},
     Utilities:{getUuid:()=>crypto.randomUUID()}};
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(require('path').join(__dirname, '..', 'Code.gs'),'utf8'),ctx);
-  return {ctx,sheets,cache};
+  return {ctx,sheets,cache,props,triggers,Sheet};
 }
-module.exports={load};
+module.exports={load,Sheet};

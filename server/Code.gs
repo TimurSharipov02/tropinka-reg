@@ -8,6 +8,9 @@
  *   «Точки»       — точки маршрута, их ценность, секреты и ссылки для QR
  *   «Сканы»       — журнал всех попыток скана со статусом
  *
+ * Если таблица — это таблица ответов Google Формы, ответы формы автоматически
+ * переносятся в «Регистрации» (лист формы остаётся как есть).
+ *
  * Установка — см. server/README.md.
  */
 
@@ -116,12 +119,17 @@ function register_(body) {
   return withLock_(function () {
     var existing = findRegistration_(nick);
     if (existing) return status_(existing, { already: true });
-    var amount = price_(s, gender, Date.now());
-    var sh = sheet_("regs");
-    sh.appendRow([new Date(), nick, gender, payment, amount, amount === 0, ""]);
-    sh.getRange(sh.getLastRow(), COL_PAID).insertCheckboxes();
+    var amount = addRegistration_(s, new Date(), nick, gender, payment);
     return status_({ nick: nick, amount: amount, paid: amount === 0, blocked: false }, { already: false });
   });
+}
+
+function addRegistration_(s, time, nick, gender, payment) {
+  var amount = price_(s, gender, time.getTime());
+  var sh = sheet_("regs");
+  sh.appendRow([time, nick, gender, payment, amount, amount === 0, ""]);
+  sh.getRange(sh.getLastRow(), COL_PAID).insertCheckboxes();
+  return amount;
 }
 
 // статус регистрации и оплаты — чтобы участник видел, подтверждён ли перевод
@@ -366,6 +374,47 @@ function setup() {
     ]);
   }
   refreshQr();
+
+  // ответы Google Формы → «Регистрации»: сразу и при каждом новом ответе
+  importFormResponses();
+  var hasTrigger = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === "importFormResponses"; });
+  if (formSheet_() && !hasTrigger) ScriptApp.newTrigger("importFormResponses").forSpreadsheet(ss).onFormSubmit().create();
+}
+
+/* ================= ответы Google Формы ================= */
+
+// лист, куда Google Форма пишет ответы: «Время | ник | пол | источник оплаты»
+function formSheet_() {
+  return SpreadsheetApp.getActive().getSheets().filter(function (sh) {
+    return /^(Ответы на форму|Form Responses)/i.test(sh.getName());
+  })[0] || null;
+}
+
+/**
+ * Переносит новые ответы формы в «Регистрации» (каждый — один раз).
+ * Ник, который не похож на ник в Telegram, переносится как есть —
+ * поправьте его вручную в «Регистрациях», иначе человек не сможет войти.
+ */
+function importFormResponses() {
+  var form = formSheet_();
+  if (!form) return;
+  withLock_(function () {
+    var props = PropertiesService.getScriptProperties();
+    var done = Number(props.getProperty("formRowsImported")) || 1; // строка 1 — заголовки
+    var last = form.getLastRow();
+    if (last <= done) return;
+    var s = settings_();
+    form.getRange(done + 1, 1, last - done, 4).getValues().forEach(function (r) {
+      var raw = String(r[1]).trim();
+      if (!raw) return;
+      var nick = cleanNick_(raw) || raw;
+      if (cleanNick_(raw) && findRegistration_(nick)) return; // уже есть, например с сайта
+      var gender = /^ж/i.test(String(r[2]).trim()) ? "Ж" : "М";
+      var time = r[0] instanceof Date ? r[0] : new Date();
+      addRegistration_(s, time, nick, gender, String(r[3]).trim());
+    });
+    props.setProperty("formRowsImported", String(last));
+  });
 }
 
 /** Дозаполняет секреты, ссылки для QR и картинки QR у всех точек. */

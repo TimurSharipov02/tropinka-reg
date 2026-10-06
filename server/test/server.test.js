@@ -58,4 +58,33 @@ const before=JSON.stringify(S('Настройки').data); ctx.setup(); assert.e
 r=post({action:'scan',nick:'fixie_masha',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:5}); 
 st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],['fixie_masha',3]],'tie: earlier first');
 
+
+// ===== таблица ответов Google Формы =====
+{
+  const {load:load2}=require('./gas-mock');
+  const g=load2();
+  const form=g.ctx.SpreadsheetApp.getActive().insertSheet('Ответы на форму (1)');
+  const d=(s)=>new Date(s);
+  form.data=[['Отметка времени','Я ник телеграмм','пол ','стоимость участия…'],
+    [d('2026-10-03T17:46:53+03:00'),'Lmsmolentsev','М','Перевод, т банк (Леонид С)'],
+    [d('2026-10-04T09:38:00+03:00'),'difdebik','М','Тимур Рафаэлевич. Т-Банк'],
+    [d('2026-10-05T12:22:25+03:00'),'@JasonFunderberkerr','М','Альфа'],
+    [d('2026-10-05T13:00:00+03:00'),'Аня','Ж','бесплатно'],
+    [d('2026-10-27T10:00:00+03:00'),'late_guy','М','Сбер']];
+  g.ctx.setup();
+  const regs=()=>g.sheets['Регистрации'].data.slice(1).map(r=>[r[1],r[2],r[4],r[5]].join('/'));
+  assert.deepEqual(regs(),['lmsmolentsev/М/300/false','difdebik/М/300/false','jasonfunderberkerr/М/300/false','Аня/Ж/0/true','late_guy/М/600/false']);
+  assert.equal(g.triggers.length,1,'триггер на новые ответы формы');
+  g.ctx.setup(); assert.equal(g.triggers.length,1); assert.equal(regs().length,5,'повторный setup не дублирует');
+  // новый ответ формы
+  form.data.push([new Date(),'new_one','М','x']); g.ctx.importFormResponses();
+  assert.equal(regs().length,6); g.ctx.importFormResponses(); assert.equal(regs().length,6);
+  // уже зарегистрированный с сайта не дублируется
+  g.sheets['Настройки'].data.find(r=>r[0]==='Старт')[1]=new Date(Date.now()+3600e3).toISOString();
+  JSON.parse(g.ctx.doPost({postData:{contents:JSON.stringify({action:'register',telegram:'site_guy',gender:'М',payment:'x'})}}).s);
+  form.data.push([new Date(),'@Site_Guy','М','x']); g.ctx.importFormResponses(); assert.equal(regs().length,7);
+  // вход по нику из формы
+  assert.equal(JSON.parse(g.ctx.doPost({postData:{contents:JSON.stringify({action:'login',nick:'@lmsmolentsev'})}}).s).nick,'lmsmolentsev');
+  console.log('form import:', regs().join(' | '));
+}
 console.log('ALL OK');
