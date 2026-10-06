@@ -111,6 +111,17 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.equal(pts.data[1][8],'Вход со двора'); assert.equal(pts.data[1][9],img); assert.match(pts.data[1][10],/drive\.google\.com\/file\/d\//);
 }
 
+// пустые ID проставляются сами: fin для финиша, p1, p2… для остальных
+{ const {load:l6}=require('./gas-mock'); const g6=l6();
+  const pts=g6.ctx.SpreadsheetApp.getActive().insertSheet('Точки');
+  pts.data=[NEW_HEAD,["","Мост","55.7, 37.6",1,"","","","","","",""],["p1","Уже с ID","55.7, 37.6",1,"","s1","","","","",""],
+            ["","Клуб","55.7, 37.6",5,"да","","","","","",""],["","","",'',"","","","","","",""],["","Смотровая","",2,"","","","","","",""]];
+  g6.ctx.setup();
+  assert.deepEqual(pts.data.slice(1).map(r=>r[0]),["p2","p1","fin","","p3"]);
+  assert.equal(pts.data[2][5],'s1','чужой секрет не меняется');
+  pts.data.slice(1).forEach(r=>{ if(r[0]){ assert.ok(r[5]); assert.match(r[6],new RegExp('\\?cp='+r[0]+'&k='+r[5]+'$')); } else assert.equal(r[6],''); });
+}
+
 // без setup — понятная ошибка
 { const {load:l3}=require('./gas-mock'); const g3=l3();
   assert.match(JSON.parse(g3.ctx.doGet({parameter:{action:'state'}}).s).error,/setup/); }

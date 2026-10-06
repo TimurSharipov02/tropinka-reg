@@ -517,6 +517,21 @@ function refreshQr() {
     if (t.col[k] >= 0) t.sh.getRange(2, t.col[k] + 1, n, 1).setValues(values.map(function (v) { return [v]; }));
   };
 
+  // пустой ID у заполненной точки: «fin» для финиша, иначе p1, p2, …
+  var used = {};
+  t.rows.forEach(function (r) { used[String(t.get(r, "id")).trim()] = true; });
+  var nextId = function (final) {
+    if (final && !used.fin) return (used.fin = true) && "fin";
+    for (var k = 1; ; k++) if (!used["p" + k]) return (used["p" + k] = true) && "p" + k;
+  };
+  write("id", t.rows.map(function (r) {
+    var id = String(t.get(r, "id")).trim();
+    var filled = String(t.get(r, "name")).trim() || String(t.get(r, "coords")).trim();
+    if (!id && filled) id = nextId(YES.test(String(t.get(r, "final")).trim()));
+    if (t.col.id >= 0) r[t.col.id] = id;
+    return id;
+  }));
+
   var secrets = t.rows.map(function (r) {
     var s = String(t.get(r, "secret")).trim();
     return s || (String(t.get(r, "id")).trim() ? Utilities.getUuid().replace(/-/g, "").slice(0, 12) : "");
