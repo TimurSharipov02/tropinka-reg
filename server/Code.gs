@@ -59,7 +59,7 @@ function doGet(e) {
   return handle_(function () {
     var p = (e && e.parameter) || {};
     var action = p.action || "state";
-    if (action === "state") return getState_();
+    if (action === "state") return getState_(p.test);
     if (action === "me") return me_(p.nick);
     throw userError_("Неизвестное действие");
   });
@@ -96,10 +96,12 @@ function userError_(message) {
 
 /* ================= действия ================= */
 
-function getState_() {
+function getState_(testKey) {
   var s = settings_();
   var now = Date.now();
-  var state = { now: now, start: s.start, radius: s.radius, open: now >= s.start };
+  var test = isAdmin_(s, testKey);
+  // в тестовом режиме (с ключом администратора) точки видны и до старта
+  var state = { now: now, start: s.start, radius: s.radius, open: now >= s.start || test, test: test };
   if (!state.open) return state; // до старта точки не раскрываем
 
   var cache = CacheService.getScriptCache();
@@ -172,6 +174,7 @@ function login_(body) {
 
 function scan_(body) {
   var s = settings_();
+  if (body.test) return testScan_(s, body);
   var nick = cleanNick_(body.nick);
   var cpId = String(body.cp || "").trim();
   var lat = Number(body.lat);
@@ -225,18 +228,66 @@ function scan_(body) {
 
 /* ================= обслуживание по ключу ================= */
 
+function isAdmin_(s, key) {
+  return Boolean(s.adminKey) && String(key || "") === s.adminKey;
+}
+
+// Тестовый скан для разработки и расклейки: проверяет, что QR от этой точки
+// и как далеко телефон от её координат. В «Сканы» — с пометкой «тест», в очки не идёт.
+function testScan_(s, body) {
+  if (!isAdmin_(s, body.test)) throw userError_("Тестовый режим: неверный ключ");
+  var cpId = String(body.cp || "").trim();
+  var lat = Number(body.lat);
+  var lng = Number(body.lng);
+  var accuracy = Number(body.accuracy) || 0;
+  var point = readPoints_().filter(function (p) { return p.id === cpId; })[0];
+  var log = function (status, distance) {
+    sheet_("scans").appendRow([new Date(), "(тест)", cpId, 0,
+      distance == null ? "" : Math.round(distance), accuracy ? Math.round(accuracy) : "", "тест: " + status]);
+  };
+  if (!point) { log("нет точки"); throw userError_("Такой точки нет в таблице"); }
+  if (!body.k || String(body.k) !== point.secret) { log("неверный код"); throw userError_("QR-код не от этой точки — секрет не совпал"); }
+  if (!isFinite(lat) || !isFinite(lng)) { log("нет геолокации"); throw userError_("Не получили геолокацию"); }
+  var hasCoords = isFinite(point.lat) && isFinite(point.lng);
+  var distance = hasCoords ? distanceM_({ lat: lat, lng: lng }, point) : null;
+  var ok = hasCoords && distance <= s.radius + Math.min(accuracy, ACCURACY_BONUS_M);
+  log(ok ? "ok" : hasCoords ? "далеко" : "нет координат", distance);
+  return {
+    test: true, ok: true, cp: cpId, name: point.name, inRadius: ok, radius: s.radius,
+    distance: distance == null ? null : Math.round(distance), accuracy: Math.round(accuracy), hasCoords: hasCoords,
+  };
+}
+
 // Служебные команды для удалённого обслуживания таблицы.
 // Работают только с «Ключом администратора» из листа «Настройки».
 function admin_(body) {
   var s = settings_();
-  if (!s.adminKey || String(body.key || "") !== s.adminKey) throw userError_("Нет доступа");
+  if (!isAdmin_(s, body.key)) throw userError_("Нет доступа");
   if (body.op === "refresh") {
     withLock_(refreshQr);
     CacheService.getScriptCache().remove("public");
     return { done: true, points: adminPoints_(s) };
   }
   if (body.op === "points") return { points: adminPoints_(s) };
+  if (body.op === "coords") return setCoords_(body);
   throw userError_("Неизвестная команда");
+}
+
+// Расклейка: записать точке координаты по месту, где стоит организатор
+function setCoords_(body) {
+  var lat = Number(body.lat);
+  var lng = Number(body.lng);
+  if (!isFinite(lat) || !isFinite(lng)) throw userError_("Нет координат");
+  return withLock_(function () {
+    var t = pointsTable_();
+    var i = -1;
+    t.rows.forEach(function (r, k) { if (String(t.get(r, "id")).trim() === String(body.id || "").trim()) i = k; });
+    if (i < 0 || t.col.coords < 0) throw userError_("Такой точки нет в таблице");
+    var coords = lat.toFixed(6) + ", " + lng.toFixed(6);
+    t.sh.getRange(i + 2, t.col.coords + 1).setNumberFormat("@").setValue(coords);
+    CacheService.getScriptCache().remove("public");
+    return { id: body.id, coords: coords };
+  });
 }
 
 function adminPoints_(s) {

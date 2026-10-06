@@ -7,6 +7,23 @@
   const params = new URLSearchParams(location.search);
   const DEMO = !CFG.apiUrl || params.has("demo");
 
+  // Тестовый режим (разработка и расклейка QR): включается ссылкой ?test=<ключ администратора>,
+  // телефон его запоминает; ?test=off — выключить. Тестовые сканы не идут в зачёт.
+  const testKey = (function () {
+    const fromUrl = params.get("test");
+    try {
+      if (fromUrl === "off") localStorage.removeItem("fgk_test");
+      else if (fromUrl) localStorage.setItem("fgk_test", fromUrl);
+      if (fromUrl) {
+        params.delete("test");
+        history.replaceState(null, "", location.pathname + (params.toString() ? "?" + params : ""));
+      }
+      return DEMO ? "" : localStorage.getItem("fgk_test") || "";
+    } catch (e) {
+      return fromUrl && fromUrl !== "off" && !DEMO ? fromUrl : "";
+    }
+  })();
+
   /* ================= состояние ================= */
 
   let state = null; // { now, start, radius, open, checkpoints, leaderboard }
@@ -16,7 +33,7 @@
   let payment = null; // { amount, paid } — статус оплаты участника
 
   const now = () => Date.now() + clockOffset;
-  const raceOn = () => state && now() >= state.start;
+  const raceOn = () => state && (now() >= state.start || state.test);
 
   const store = {
     get() {
@@ -44,7 +61,8 @@
   }
 
   const remote = {
-    state: () => fetchJson(CFG.apiUrl + "?action=state", { cache: "no-store" }),
+    state: () =>
+      fetchJson(CFG.apiUrl + "?action=state" + (testKey ? "&test=" + encodeURIComponent(testKey) : ""), { cache: "no-store" }),
     me: (nick) => fetchJson(CFG.apiUrl + "?action=me&nick=" + encodeURIComponent(nick), { cache: "no-store" }),
     // text/plain — чтобы браузер не делал preflight-запрос, который Apps Script не поддерживает
     call: (action, data) =>
@@ -56,6 +74,7 @@
     register: (v) => remote.call("register", v),
     login: (nick) => remote.call("login", { nick }),
     scan: (v) => remote.call("scan", v),
+    admin: (op, v) => remote.call("admin", Object.assign({ op, key: testKey }, v)),
   };
 
   /* ================= демо ================= */
@@ -324,8 +343,58 @@
     $("scan-title").textContent = title;
     $("scan-text").innerHTML = text;
     $("scan-close").textContent = action || "К точкам";
+    $("scan-extra").hidden = true;
     sheet.querySelector(".sheet__card").focus();
   }
+
+  /* ---------- тестовый скан: расклейка и разработка ---------- */
+
+  let testPos = null; // где стоял организатор при последнем тестовом скане
+
+  async function testScan(cp, k) {
+    const name = cpName(cp);
+    showSheet("wait", name, "Определяем, где ты стоишь…", "Тест · геолокация", "📍");
+    try {
+      testPos = await getPosition();
+    } catch (err) {
+      return showSheet("far", name, err.message, "Тест · нет геолокации", "✗");
+    }
+    let res;
+    try {
+      res = await api.scan({ test: testKey, cp, k, lat: testPos.lat, lng: testPos.lng, accuracy: testPos.accuracy });
+    } catch (err) {
+      return showSheet("far", name, "Нет связи с сервером.", "Тест · ошибка сети", "✗");
+    }
+    if (!res.ok) return showSheet("far", name, esc(res.error), "Тест · QR не подошёл", "✗");
+    const gps = "Точность GPS ±" + res.accuracy + " м.";
+    let text;
+    if (!res.hasCoords) text = "QR от этой точки ✓<br>У точки в таблице нет координат.";
+    else if (res.inRadius) text = "QR от этой точки ✓<br>До координат из таблицы <b>" + fmtDistance(res.distance) + "</b> — скан засчитается.";
+    else text = "QR от этой точки ✓, но до её координат в таблице <b>" + fmtDistance(res.distance) +
+      "</b> — гонщику скан <b>не засчитается</b> (радиус " + res.radius + " м).";
+    showSheet(res.inRadius ? "ok" : "far", res.name || name, text + "<br><small>" + gps + "</small>",
+      "Тест · " + cp, res.inRadius ? "✓" : "!", "Готово");
+    const extra = $("scan-extra");
+    extra.hidden = false;
+    extra.dataset.cp = cp;
+    extra.textContent = res.inRadius ? "Уточнить координаты точки по моему месту" : "Записать сюда координаты точки";
+  }
+
+  $("scan-extra").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const cp = btn.dataset.cp;
+    btn.disabled = true;
+    try {
+      const res = await api.admin("coords", { id: cp, lat: testPos.lat, lng: testPos.lng });
+      if (!res.ok) throw new Error(res.error);
+      showSheet("ok", cpName(cp), "Координаты точки в таблице: <b>" + esc(res.coords) + "</b>", "Тест · координаты записаны", "✓", "Готово");
+      refresh();
+    } catch (err) {
+      showSheet("far", cpName(cp), esc(err.message || "Не получилось записать координаты"), "Тест · ошибка", "✗", "Готово");
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   function getPosition() {
     return new Promise((resolve, reject) => {
@@ -339,6 +408,7 @@
   }
 
   async function scan(cp, k, fakePosition) {
+    if (testKey) return testScan(cp, k);
     if (!raceOn()) return showSheet("far", "Ещё рано", "Сканы засчитываются с момента старта.", "До старта", "⏳");
     const name = cpName(cp);
     if (!user) {
@@ -549,6 +619,11 @@
     })
   );
 
+  $("test-exit").addEventListener("click", () => {
+    try { localStorage.removeItem("fgk_test"); } catch (e) { /* приватный режим */ }
+    location.reload();
+  });
+
   /* ================= старт ================= */
 
   (async function init() {
@@ -556,6 +631,7 @@
     const saved = store.get();
     if (saved && cleanNick(saved.nick)) user = { nick: saved.nick };
     if (DEMO) demo.setMode("reg");
+    if (testKey) $("testbar").hidden = false;
     await refresh();
     loadMyStatus();
     if (params.has("cp")) scan(params.get("cp"), params.get("k"));

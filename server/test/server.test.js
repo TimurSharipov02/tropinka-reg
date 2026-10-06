@@ -135,6 +135,29 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   keyRow[1]=''; assert.equal(call({op:'points',key:''}).error,'Нет доступа','пустой ключ не открывает');
 }
 
+// тестовый режим: точки до старта, тестовые сканы, координаты по месту
+{ const {load:l8}=require('./gas-mock'); const g8=l8(); g8.ctx.setup();
+  const key=g8.sheets['Настройки'].data.find(r=>r[0]==='Ключ администратора')[1];
+  g8.sheets['Настройки'].data.find(r=>r[0]==='Старт')[1]=new Date(Date.now()+86400e3).toISOString();
+  const get=t=>JSON.parse(g8.ctx.doGet({parameter:{action:'state',test:t}}).s);
+  assert.equal(get(undefined).open,false); assert.equal(get('wrong').checkpoints,undefined,'без ключа точки скрыты');
+  const st=get(key); assert.equal(st.open,true); assert.equal(st.test,true); assert.equal(st.checkpoints.length,3);
+  const post=b=>JSON.parse(g8.ctx.doPost({postData:{contents:JSON.stringify(b)}}).s);
+  const row=g8.sheets['Точки'].data[1]; const [la,ln]=row[2].split(',').map(Number);
+  let r=post({action:'scan',test:key,cp:'c1',k:row[5],lat:la+0.0005,lng:ln,accuracy:8});
+  assert.equal(r.ok,true); assert.equal(r.inRadius,true); assert.equal(r.distance,56);
+  r=post({action:'scan',test:key,cp:'c1',k:row[5],lat:la+0.01,lng:ln}); assert.equal(r.inRadius,false); assert.equal(r.distance,1112);
+  assert.match(post({action:'scan',test:key,cp:'c1',k:'bad',lat:la,lng:ln}).error,/не от этой точки/);
+  assert.match(post({action:'scan',test:'wrong',cp:'c1',k:row[5],lat:la,lng:ln}).error,/неверный ключ/);
+  const scans=g8.sheets['Сканы'].data.slice(1); assert.deepEqual(scans.map(x=>x[6]),['тест: ok','тест: далеко','тест: неверный код']);
+  assert.ok(scans.every(x=>x[1]==='(тест)'&&x[3]===0)); assert.deepEqual(get(key).leaderboard,[],'тест в топ не идёт');
+  // записать координаты точки по месту
+  assert.equal(post({action:'admin',op:'coords',key:'x',id:'c1',lat:1,lng:2}).error,'Нет доступа');
+  r=post({action:'admin',op:'coords',key,id:'c1',lat:55.7612345,lng:49.1234567}); assert.equal(r.coords,'55.761235, 49.123457');
+  assert.equal(row[2],'55.761235, 49.123457');
+  assert.match(post({action:'admin',op:'coords',key,id:'nope',lat:1,lng:2}).error,/нет в таблице/);
+}
+
 // без setup — понятная ошибка
 { const {load:l3}=require('./gas-mock'); const g3=l3();
   assert.match(JSON.parse(g3.ctx.doGet({parameter:{action:'state'}}).s).error,/setup/); }

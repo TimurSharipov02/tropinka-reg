@@ -525,6 +525,19 @@ h1, h2, h3 { margin: 0; }
 .sheet[data-state="far"] .sheet__icon { background: var(--danger); color: #111; }
 .sheet[data-state="wait"] .sheet__icon { animation: bob 1.2s ease-in-out infinite; }
 
+/* ---------- test mode ---------- */
+.testbar {
+  position: sticky; top: 0; z-index: 46;
+  display: flex; justify-content: center; align-items: center; gap: 12px;
+  padding: 8px 16px;
+  background: repeating-linear-gradient(-45deg, var(--acid) 0 14px, #b5e81f 14px 28px);
+  color: #111; font: 800 13px/1.2 var(--head); text-transform: uppercase; text-align: center;
+}
+.testbar button { all: unset; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.sheet__extra { display: block; margin: 14px auto 0; color: var(--orange); font-weight: 800; }
+.sheet__extra:disabled { opacity: .5; }
+.sheet p#scan-text small { color: var(--muted); }
+
 /* ---------- mockup switcher ---------- */
 .demo {
   position: fixed; left: 50%; bottom: 12px; z-index: 45;

@@ -13,6 +13,10 @@
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
+  <div class="testbar" id="testbar" hidden>
+    Тестовый режим — сканы не идут в зачёт
+    <button type="button" id="test-exit">выйти</button>
+  </div>
 
   <header class="hero">
     <figure class="hero__photo">
@@ -217,6 +221,7 @@
       <h2 id="scan-title">Точка</h2>
       <p id="scan-text"></p>
       <button type="button" class="submit submit--small" id="scan-close">К точкам</button>
+      <button type="button" class="link-btn sheet__extra" id="scan-extra" hidden>Записать сюда координаты точки</button>
     </div>
   </div>
 
