@@ -122,6 +122,19 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   pts.data.slice(1).forEach(r=>{ if(r[0]){ assert.ok(r[5]); assert.match(r[6],new RegExp('\\?cp='+r[0]+'&k='+r[5]+'$')); } else assert.equal(r[6],''); });
 }
 
+// служебные команды по ключу администратора
+{ const {load:l7}=require('./gas-mock'); const g7=l7(); g7.ctx.setup();
+  const keyRow=g7.sheets['Настройки'].data.find(r=>r[0]==='Ключ администратора'); assert.match(keyRow[1],/^[0-9a-f]{32}$/);
+  const key=keyRow[1]; g7.ctx.setup(); assert.equal(keyRow[1],key,'повторный setup ключ не меняет');
+  const call=b=>JSON.parse(g7.ctx.doPost({postData:{contents:JSON.stringify(Object.assign({action:'admin'},b))}}).s);
+  assert.equal(call({op:'points'}).error,'Нет доступа'); assert.equal(call({op:'points',key:'wrong'}).error,'Нет доступа');
+  const pts=g7.sheets['Точки'].data; pts[1][0]=''; pts[1][5]=''; pts[1][6]='';
+  const res=call({op:'refresh',key}); assert.equal(res.ok,true); assert.equal(res.points[0].id,'p1'); assert.ok(res.points[0].secret);
+  assert.match(res.points[0].link,/\?cp=p1&k=/); assert.equal(res.points[2].id,'fin');
+  assert.equal(call({op:'points',key}).points.length,3);
+  keyRow[1]=''; assert.equal(call({op:'points',key:''}).error,'Нет доступа','пустой ключ не открывает');
+}
+
 // без setup — понятная ошибка
 { const {load:l3}=require('./gas-mock'); const g3=l3();
   assert.match(JSON.parse(g3.ctx.doGet({parameter:{action:'state'}}).s).error,/setup/); }

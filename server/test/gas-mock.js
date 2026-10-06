@@ -12,7 +12,7 @@ class Sheet {
     const sh=this,r0=a-1,c0=b-1,nr=c||1,nc=d||1;
     const rng={getValues(){return Array.from({length:nr},(_,i)=>Array.from({length:nc},(_,j)=>{const v=(sh.data[r0+i]||[])[c0+j];return v===undefined?'':v;}));},
       setValues(v){v.forEach((row,i)=>{sh.data[r0+i]=sh.data[r0+i]||[];row.forEach((x,j)=>sh.data[r0+i][c0+j]=x);});return rng;},
-      setNumberFormat(){return rng;},setFontWeight(){return rng;},insertCheckboxes(){return rng;},setValue(x){sh.data[r0]=sh.data[r0]||[];sh.data[r0][c0]=x;return rng;}};
+      setNumberFormat(){return rng;},setFontWeight(){return rng;},insertCheckboxes(){return rng;},setValue(x){sh.data[r0]=sh.data[r0]||[];sh.data[r0][c0]=x;return rng;},getValue(){const v=(sh.data[r0]||[])[c0];return v===undefined?'':v;}};
     return rng;
   }
   getDataRange(){return this.getRange(1,1,Math.max(1,this.getLastRow()),Math.max(1,this.getLastColumn()));}

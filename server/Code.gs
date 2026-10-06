@@ -35,6 +35,7 @@ var DEFAULT_SETTINGS = [
   ["Цена после повышения, ₽", "600"],
   ["Повышение цены", "2026-10-26T00:00:00+03:00"],
   ["Гонка только после оплаты", "нет"],
+  ["Ключ администратора", ""], // setup заполнит сам; с ним можно обслуживать таблицу удалённо
 ];
 
 // колонки листа «Точки» ищем по названию — их можно переставлять
@@ -70,6 +71,7 @@ function doPost(e) {
     if (body.action === "register") return register_(body);
     if (body.action === "login") return login_(body);
     if (body.action === "scan") return scan_(body);
+    if (body.action === "admin") return admin_(body);
     throw userError_("Неизвестное действие");
   });
 }
@@ -221,6 +223,42 @@ function scan_(body) {
   });
 }
 
+/* ================= обслуживание по ключу ================= */
+
+// Служебные команды для удалённого обслуживания таблицы.
+// Работают только с «Ключом администратора» из листа «Настройки».
+function admin_(body) {
+  var s = settings_();
+  if (!s.adminKey || String(body.key || "") !== s.adminKey) throw userError_("Нет доступа");
+  if (body.op === "refresh") {
+    withLock_(refreshQr);
+    CacheService.getScriptCache().remove("public");
+    return { done: true, points: adminPoints_(s) };
+  }
+  if (body.op === "points") return { points: adminPoints_(s) };
+  throw userError_("Неизвестная команда");
+}
+
+function adminPoints_(s) {
+  var t = pointsTable_();
+  return t.rows.map(function (r, i) {
+    var photo = t.get(r, "photo");
+    return {
+      row: i + 2,
+      id: String(t.get(r, "id")).trim(),
+      name: String(t.get(r, "name")).trim(),
+      coords: String(t.get(r, "coords")).trim(),
+      value: t.get(r, "value"),
+      final: String(t.get(r, "final")).trim(),
+      secret: String(t.get(r, "secret")).trim(),
+      link: String(t.get(r, "link")).trim(),
+      description: String(t.get(r, "description")).trim(),
+      photo: photo && typeof photo === "object" ? "[фото в ячейке]" : String(photo || "").trim(),
+      photoSite: String(t.get(r, "photoSite")).trim(),
+    };
+  });
+}
+
 /* ================= данные ================= */
 
 function settings_() {
@@ -239,6 +277,7 @@ function settings_() {
     priceLate: Number(map["Цена после повышения, ₽"]) || Number(map["Цена, ₽"]) || 0,
     priceChange: isFinite(change) ? change : Infinity,
     requirePaid: YES.test(String(map["Гонка только после оплаты"] || "").trim()),
+    adminKey: String(map["Ключ администратора"] || "").trim(),
   };
 }
 
@@ -405,6 +444,11 @@ function setup() {
     st.getRange(st.getLastRow() + 1, 1, 1, 2).setNumberFormat("@").setValues([row]);
     st.getRange(st.getLastRow(), 1).setFontWeight("bold");
   });
+  var keyRow = st.getRange(1, 1, st.getLastRow(), 2).getValues()
+    .map(function (r) { return String(r[0]).trim(); }).indexOf("Ключ администратора");
+  if (keyRow >= 0 && !String(st.getRange(keyRow + 1, 2).getValue()).trim()) {
+    st.getRange(keyRow + 1, 2).setNumberFormat("@").setValue(Utilities.getUuid().replace(/-/g, ""));
+  }
   st.autoResizeColumns(1, 2);
 
   ensure(SHEETS.regs, HEADERS.regs);
