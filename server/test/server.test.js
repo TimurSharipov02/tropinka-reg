@@ -34,7 +34,7 @@ assert.equal(post({action:'login',nick:'@FIXIE_MASHA'}).nick,'fixie_masha');
 assert.equal(post({action:'login',nick:'nobody'}).ok,false);
 assert.match(post({action:'login',nick:'blocked_guy'}).error,/не допущен/);
 const pts=S('Точки').data.slice(1); // старый вид строки [.., .., .., lat, lng, .., .., secret] — чтобы не переписывать проверки ниже
-const old=r=>{const [la,ln]=r[3].split(',').map(Number);return [r[0],r[1],r[2],la,ln,r[4],r[5],r[6]];};
+const old=r=>{const [la,ln]=r[2].split(',').map(Number);return [r[0],r[1],'',la,ln,r[3],r[4],r[5]];};
 const [c1,c2,fin]=pts.map(old); 
 let r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:10}); assert.equal(r.ok,false); assert.match(r.error,/старта/);
 setStart(Date.now()-60e3);
@@ -61,21 +61,23 @@ r=post({action:'scan',nick:'fixie_masha',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],acc
 st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],['fixie_masha',3]],'tie: earlier first');
 
 
-// описание, фото и координаты точек; перестройка старого листа
+// описание, фото и координаты точек; перестройка старых листов
+const NEW_HEAD=["ID","Название","Координаты","Ценность","Финиш","Секрет","Ссылка для QR","QR","Описание","Фото","Фото для сайта"];
 { const {load:l4}=require('./gas-mock'); const g4=l4();
   const pts=g4.ctx.SpreadsheetApp.getActive().insertSheet('Точки');
+  // самый первый вид листа: широта/долгота отдельно и адрес
   pts.data=[["ID","Название","Адрес","Широта","Долгота","Ценность","Финиш","Секрет","Ссылка для QR","QR"],["c1","Мост","Наб., 1",55.75,37.61,2,"","sec1","",""]];
   g4.ctx.setup();
-  assert.deepEqual(pts.data[0],["ID","Название","Адрес","Координаты","Ценность","Финиш","Секрет","Ссылка для QR","QR","Описание","Фото","Фото для сайта"]);
-  assert.deepEqual(pts.data[1].slice(0,7),["c1","Мост","Наб., 1","55.75, 37.61",2,"","sec1"],'секрет и ценность на месте');
-  g4.ctx.setup(); assert.equal(pts.data[0].length,12,'повторный setup ничего не ломает');
-  pts.data[1][9]='Под мостом, у третьей опоры';
-  pts.data[1][10]='https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view?usp=sharing';
-  pts.data.push(["c2","Б","","55.765000, 37.598000",1,"","sec2","","","","https://example.com/p.jpg"],["c3","В","","55,7; 37,6",1,"да","sec3","","","","не ссылка"]);
-  g4.ctx.refreshQr(); assert.match(pts.data[2][7],/\?cp=c2&k=sec2$/); assert.match(pts.data[2][8],/ENCODEURL\(H3\)/);
+  assert.deepEqual(pts.data[0],NEW_HEAD);
+  assert.deepEqual(pts.data[1].slice(0,6),["c1","Мост","55.75, 37.61",2,"","sec1"],'секрет и ценность на месте');
+  g4.ctx.setup(); assert.deepEqual(pts.data[0],NEW_HEAD,'повторный setup ничего не ломает');
+  pts.data[1][8]='Под мостом, у третьей опоры';
+  pts.data[1][9]='https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view?usp=sharing';
+  pts.data.push(["c2","Б","55.765000, 37.598000",1,"","sec2","","","","https://example.com/p.jpg"],["c3","В","55,7; 37,6",1,"да","sec3","","","","не ссылка"]);
+  g4.ctx.refreshQr(); assert.match(pts.data[2][6],/\?cp=c2&k=sec2$/); assert.match(pts.data[2][7],/ENCODEURL\(G3\)/);
   g4.sheets['Настройки'].data.find(r=>r[0]==='Старт')[1]=new Date(Date.now()-1000).toISOString();
   const cps=JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints;
-  assert.deepEqual([cps[0].lat,cps[0].lng,cps[0].value],[55.75,37.61,2]);
+  assert.deepEqual([cps[0].lat,cps[0].lng,cps[0].value],[55.75,37.61,2]); assert.ok(!('address' in cps[0]));
   assert.deepEqual([cps[1].lat,cps[1].lng],[55.765,37.598]); assert.deepEqual([cps[2].lat,cps[2].lng,cps[2].final],[55.7,37.6,true]);
   assert.equal(cps[0].description,'Под мостом, у третьей опоры');
   assert.equal(cps[0].photo,'https://drive.google.com/thumbnail?id=1AbCdEfGhIjKlMnOpQrStUvWxYz012345&sz=w1200');
@@ -83,18 +85,30 @@ st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],
 
   // фото, вставленное прямо в ячейку
   const img={getContentUrl:()=>'https://lh3.googleusercontent.com/tmp-image'};
-  pts.data[3][10]=img; pts.data[3][9]='описание'; g4.ctx.refreshQr();
+  pts.data[3][9]=img; pts.data[3][8]='описание'; g4.ctx.refreshQr();
   assert.equal(g4.drive.files.length,1); assert.equal(g4.drive.files[0].name,'точка c3');
-  assert.match(pts.data[3][11],/^https:\/\/drive\.google\.com\/file\/d\/file0+1\/view$/);
-  assert.equal(pts.data[3][10],img,'ячейку с фото не трогаем'); assert.equal(pts.data[3][9],'описание');
+  assert.match(pts.data[3][10],/^https:\/\/drive\.google\.com\/file\/d\/file0+1\/view$/);
+  assert.equal(pts.data[3][9],img,'ячейку с фото не трогаем'); assert.equal(pts.data[3][8],'описание');
   g4.cache.clear(); let c3=JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[2];
   assert.equal(c3.photo,'https://drive.google.com/thumbnail?id=file00000000000000000001&sz=w1200');
-  // повторное обновление: новая копия, старая — в корзину; одна папка
   g4.ctx.refreshQr(); assert.equal(g4.drive.files.length,2); assert.deepEqual(g4.drive.trashed,['file00000000000000000001']); assert.equal(g4.drive.folder,1);
-  // фото убрали из ячейки — копия тоже уходит, сайт показывает без фото
-  pts.data[3][10]=''; g4.ctx.refreshQr(); assert.equal(pts.data[3][11],''); assert.equal(g4.drive.trashed.length,2);
-  // ссылка-строка в «Фото» по-прежнему работает
+  pts.data[3][9]=''; g4.ctx.refreshQr(); assert.equal(pts.data[3][10],''); assert.equal(g4.drive.trashed.length,2);
   g4.cache.clear(); assert.equal(JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[1].photo,'https://example.com/p.jpg');
+
+  // фото поверх ячеек — подсказка, в каких точках
+  pts.getImages=()=>[{getAnchorCell:()=>({getRow:()=>3})}];
+  g4.ctx.refreshQr(); assert.match(g4.alerts[0],/точки: c2/);
+}
+// лист в нынешнем виде у организатора: с «Адресом» и вставленным фото
+{ const {load:l5}=require('./gas-mock'); const g5=l5();
+  const pts=g5.ctx.SpreadsheetApp.getActive().insertSheet('Точки');
+  const img={getContentUrl:()=>'https://lh3.googleusercontent.com/x'};
+  pts.data=[["ID","Название","Адрес","Координаты","Ценность","Финиш","Секрет","Ссылка для QR","QR","Описание","Фото","Фото для сайта"],
+            ["fin","Клуб","ул. Х","55.7, 37.6",5,"да","secF","old","=IMAGE()","Вход со двора",img,""]];
+  g5.ctx.setup();
+  assert.deepEqual(pts.data[0],NEW_HEAD);
+  assert.deepEqual(pts.data[1].slice(0,6),["fin","Клуб","55.7, 37.6",5,"да","secF"]);
+  assert.equal(pts.data[1][8],'Вход со двора'); assert.equal(pts.data[1][9],img); assert.match(pts.data[1][10],/drive\.google\.com\/file\/d\//);
 }
 
 // без setup — понятная ошибка

@@ -230,7 +230,6 @@
           '<div class="cp__body">' +
           (c.final ? '<span class="cp__flag">финиш</span>' : "") +
           "<h3>" + esc(c.name) + "</h3>" +
-          "<p>" + esc(c.address) + "</p>" +
           (c.description ? '<p class="cp__desc">' + esc(c.description) + "</p>" : "") +
           '<a class="cp__map" href="' + map + '" target="_blank" rel="noopener">на карте ↗</a>' +
           "</div>" +

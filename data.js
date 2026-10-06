@@ -7,15 +7,15 @@ window.RACE = {
   radius: 150,
 
   checkpoints: [
-    { id: "c1", name: "Мост", address: "Набережная, 1", lat: 55.7520, lng: 37.6175, value: 1,
+    { id: "c1", name: "Мост", lat: 55.7520, lng: 37.6175, value: 1,
       description: "QR на третьей опоре со стороны воды, на уровне руля.", photo: "assets/hero.webp" },
-    { id: "c2", name: "Граффити во дворе", address: "Садовая, 14, арка", lat: 55.7585, lng: 37.6250, value: 1 },
-    { id: "c3", name: "Велопарковка", address: "Парковая, 3", lat: 55.7460, lng: 37.6050, value: 1 },
-    { id: "c4", name: "Смотровая", address: "Лесная, 27, крыша парковки", lat: 55.7650, lng: 37.5980, value: 2 },
-    { id: "c5", name: "Старый трамвай", address: "Заводская, 8", lat: 55.7390, lng: 37.6400, value: 2 },
-    { id: "c6", name: "Холм", address: "Верхняя, 40, на вершине", lat: 55.7700, lng: 37.6500, value: 3,
+    { id: "c2", name: "Граффити во дворе", lat: 55.7585, lng: 37.6250, value: 1 },
+    { id: "c3", name: "Велопарковка", lat: 55.7460, lng: 37.6050, value: 1 },
+    { id: "c4", name: "Смотровая", lat: 55.7650, lng: 37.5980, value: 2 },
+    { id: "c5", name: "Старый трамвай", lat: 55.7390, lng: 37.6400, value: 2 },
+    { id: "c6", name: "Холм", lat: 55.7700, lng: 37.6500, value: 3,
       description: "Самая злая горка маршрута. Код на столбе у скамейки." },
-    { id: "fin", name: "bass_u x werk", address: "Клуб · награждение и туса", lat: 55.7555, lng: 37.6320, value: 5, final: true },
+    { id: "fin", name: "bass_u x werk", lat: 55.7555, lng: 37.6320, value: 5, final: true },
   ],
 
   // сканы других участников: [id точки, минут после старта]

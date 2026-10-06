@@ -21,9 +21,9 @@ class Sheet {
 }
 function load(){
   const sheets={};
-  const cache=new Map(), props={}, triggers=[], drive={folder:0,n:0,files:[],trashed:[],fetched:[]};
+  const cache=new Map(), props={}, triggers=[], drive={folder:0,n:0,files:[],trashed:[],fetched:[]}, alerts=[];
   const ctx={console,JSON,Math,Date,Number,String,Object,Error,isFinite,encodeURIComponent,
-    SpreadsheetApp:{getActive:()=>({getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new Sheet(n)),getSheets:()=>Object.values(sheets)})},
+    SpreadsheetApp:{getUi:()=>({alert:m=>alerts.push(m)}),getActive:()=>({getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new Sheet(n)),getSheets:()=>Object.values(sheets)})},
     PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]??null,setProperty:(k,v)=>{props[k]=v;}})},
     ScriptApp:{getOAuthToken:()=>'tok',getProjectTriggers:()=>triggers,newTrigger:h=>({forSpreadsheet:()=>({onFormSubmit:()=>({create:()=>triggers.push({getHandlerFunction:()=>h})})})})},
     CacheService:{getScriptCache:()=>({get:k=>{const e=cache.get(k);return e&&e.exp>Date.now()?e.v:null;},put:(k,v,s)=>cache.set(k,{v,exp:Date.now()+s*1000}),remove:k=>cache.delete(k)})},
@@ -37,6 +37,6 @@ function load(){
   const folderObj={createFile:b=>{const id='file'+String(++drive.n).padStart(20,'0');drive.files.push({id,name:b.name});return {getId:()=>id,setSharing:()=>{}};}};
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(require('path').join(__dirname, '..', 'Code.gs'),'utf8'),ctx);
-  return {ctx,sheets,cache,props,triggers,drive,Sheet};
+  return {ctx,sheets,cache,props,triggers,drive,alerts,Sheet};
 }
 module.exports={load,Sheet};

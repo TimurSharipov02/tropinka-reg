@@ -457,7 +457,7 @@ h1, h2, h3 { margin: 0; }
   aspect-ratio: 16 / 9; background: var(--line);
 }
 .cp__photo img { width: 100%; height: 100%; object-fit: cover; }
-.cp p.cp__desc { margin-top: 6px; color: var(--ink); font-size: 14px; line-height: 1.45; white-space: pre-line; }
+.cp p.cp__desc { margin-top: 4px; color: var(--ink); font-size: 14px; line-height: 1.45; white-space: pre-line; }
 .cp p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
 .cp__map { color: var(--orange); font-size: 13px; font-weight: 700; text-decoration: none; }
 .cp__map:hover { text-decoration: underline; }
