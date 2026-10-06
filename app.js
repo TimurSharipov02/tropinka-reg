@@ -29,24 +29,30 @@
 
   /* ================= сервер ================= */
 
+  // Google иногда отвечает на первый запрос страницей-заглушкой вместо JSON —
+  // тогда тихо повторяем (повтор безопасен: сервер не засчитывает скан и регистрацию дважды)
+  async function fetchJson(url, options, tries = 3) {
+    for (let i = 1; ; i++) {
+      try {
+        const res = await fetch(url, options);
+        return JSON.parse(await res.text());
+      } catch (err) {
+        if (i >= tries) throw err;
+        await new Promise((r) => setTimeout(r, 800 * i));
+      }
+    }
+  }
+
   const remote = {
-    async state() {
-      const res = await fetch(CFG.apiUrl + "?action=state", { cache: "no-store" });
-      return res.json();
-    },
-    async call(action, data) {
-      // text/plain — чтобы браузер не делал preflight-запрос, который Apps Script не поддерживает
-      const res = await fetch(CFG.apiUrl, {
+    state: () => fetchJson(CFG.apiUrl + "?action=state", { cache: "no-store" }),
+    me: (nick) => fetchJson(CFG.apiUrl + "?action=me&nick=" + encodeURIComponent(nick), { cache: "no-store" }),
+    // text/plain — чтобы браузер не делал preflight-запрос, который Apps Script не поддерживает
+    call: (action, data) =>
+      fetchJson(CFG.apiUrl, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(Object.assign({ action }, data)),
-      });
-      return res.json();
-    },
-    async me(nick) {
-      const res = await fetch(CFG.apiUrl + "?action=me&nick=" + encodeURIComponent(nick), { cache: "no-store" });
-      return res.json();
-    },
+      }),
     register: (v) => remote.call("register", v),
     login: (nick) => remote.call("login", { nick }),
     scan: (v) => remote.call("scan", v),
@@ -143,6 +149,9 @@
     return 2 * 6371000 * Math.asin(Math.sqrt(h));
   }
 
+  // в списке — уменьшенное фото с Google Диска (полное открывается по нажатию)
+  const preview = (url) => url.replace(/(drive\.google\.com\/thumbnail\?.*\bsz=)w\d+/, "$1w640");
+
   const fmtDistance = (m) => (m < 1000 ? Math.round(m) + " м" : (m / 1000).toFixed(1).replace(".", ",") + " км");
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -224,7 +233,7 @@
           '<li class="cp' + (c.final ? " cp--final" : "") + (t ? " cp--done" : "") + '">' +
           (c.photo
             ? '<a class="cp__photo" href="' + esc(c.photo) + '" target="_blank" rel="noopener">' +
-              '<img src="' + esc(c.photo) + '" alt="' + esc(c.name) + '" loading="lazy" onerror="this.parentNode.remove()"></a>'
+              '<img src="' + esc(preview(c.photo)) + '" alt="' + esc(c.name) + '" loading="lazy" onerror="this.parentNode.remove()"></a>'
             : "") +
           '<span class="cp__value" title="ценность точки">×' + c.value + "</span>" +
           '<div class="cp__body">' +
