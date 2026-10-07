@@ -35,6 +35,8 @@ var DEFAULT_SETTINGS = [
   ["Цена после повышения, ₽", "600"],
   ["Повышение цены", "2026-10-26T00:00:00+03:00"],
   ["Гонка только после оплаты", "нет"],
+  ["Очки за первое место", "10"], // на каждой точке: первый — столько, второй на 1 меньше и т. д.
+  ["Минимум очков за точку", "1"],
   ["Ключ администратора", ""], // setup заполнит сам; с ним можно обслуживать таблицу удалённо
 ];
 
@@ -109,7 +111,7 @@ function getState_(testKey) {
   var pub = cached ? JSON.parse(cached) : null;
   if (!pub) {
     var points = readPoints_();
-    pub = { checkpoints: points.map(publicPoint_), leaderboard: leaderboard_(points, readScans_()) };
+    pub = { checkpoints: points.map(publicPoint_), leaderboard: leaderboard_(s, points, readScans_()) };
     cache.put("public", JSON.stringify(pub), CACHE_SECONDS);
   }
   state.checkpoints = pub.checkpoints;
@@ -205,9 +207,11 @@ function scan_(body) {
 
     var point = readPoints_().filter(function (p) { return p.id === cpId; })[0];
     if (!point) fail(null, "нет точки", "Такой точки нет, отсканируй код ещё раз");
+    if (point.final) fail(point, "финиш", "На финише сканировать ничего не нужно");
     if (!body.k || String(body.k) !== point.secret) fail(point, "неверный код", "QR-код не подошёл, отсканируй код прямо на точке");
 
-    var already = readScans_().filter(function (x) { return x.nick === nick && x.cp === cpId; })[0];
+    var okScans = readScans_();
+    var already = okScans.filter(function (x) { return x.nick === nick && x.cp === cpId; })[0];
     if (already) return { already: true, cp: cpId, at: already.at };
 
     if (!isFinite(lat) || !isFinite(lng)) fail(point, "нет геолокации", "Не получили геолокацию. Разреши доступ и отсканируй ещё раз");
@@ -220,9 +224,11 @@ function scan_(body) {
       return { ok: false, far: true, distance: Math.round(distance), radius: s.radius, cp: cpId };
     }
 
-    log(point, OK, distance);
+    var place = okScans.filter(function (x) { return x.cp === cpId; }).length + 1;
+    var pts = placePoints_(s, point.value, place);
+    log({ value: pts }, OK, distance);
     CacheService.getScriptCache().remove("public");
-    return { cp: cpId, value: point.value, distance: Math.round(distance), at: Date.now() };
+    return { cp: cpId, value: pts, place: place, distance: Math.round(distance), at: Date.now() };
   });
 }
 
@@ -246,6 +252,7 @@ function testScan_(s, body) {
       distance == null ? "" : Math.round(distance), accuracy ? Math.round(accuracy) : "", "тест: " + status]);
   };
   if (!point) { log("нет точки"); throw userError_("Такой точки нет в таблице"); }
+  if (point.final) { log("финиш"); throw userError_("Это финиш, на нём сканировать не нужно"); }
   if (!body.k || String(body.k) !== point.secret) { log("неверный код"); throw userError_("QR-код не от этой точки: секрет не совпал"); }
   if (!isFinite(lat) || !isFinite(lng)) { log("нет геолокации"); throw userError_("Не получили геолокацию"); }
   var hasCoords = isFinite(point.lat) && isFinite(point.lng);
@@ -335,6 +342,8 @@ function settings_() {
     priceChange: isFinite(change) ? change : Infinity,
     requirePaid: YES.test(String(map["Гонка только после оплаты"] || "").trim()),
     adminKey: String(map["Ключ администратора"] || "").trim(),
+    firstPoints: Number(map["Очки за первое место"]) || 10,
+    minPoints: Number(map["Минимум очков за точку"]) || 1,
   };
 }
 
@@ -414,18 +423,30 @@ function findRegistration_(nick) {
   };
 }
 
-// очки = сумма ценности точек; при равенстве выше тот, кто набрал их раньше
-function leaderboard_(points, scans) {
+// На каждой точке очки зависят от того, каким по счёту на неё приехал:
+// первый — «Очки за первое место», каждый следующий на 1 меньше, но не меньше минимума.
+// Ценность точки — множитель. Побеждает больше очков, при равенстве — кто набрал раньше.
+function placePoints_(s, value, place) {
+  return value * Math.max(s.firstPoints - (place - 1), s.minPoints);
+}
+
+function leaderboard_(s, points, scans) {
   var value = {};
-  points.forEach(function (p) { value[p.id] = p.value; });
+  points.forEach(function (p) { if (!p.final) value[p.id] = p.value; }); // финиш не в зачёте
+  var placed = {}; // сколько уже взяли каждую точку
   var byNick = {};
-  scans.forEach(function (x) {
-    if (!(x.cp in value)) return;
-    var r = byNick[x.nick] || (byNick[x.nick] = { nick: x.nick, score: 0, reachedAt: 0, scans: [] });
-    r.score += value[x.cp];
-    r.reachedAt = Math.max(r.reachedAt, x.at);
-    r.scans.push([x.cp, x.at]);
-  });
+  scans
+    .slice()
+    .sort(function (a, b) { return a.at - b.at; })
+    .forEach(function (x) {
+      if (!(x.cp in value)) return;
+      var place = (placed[x.cp] = (placed[x.cp] || 0) + 1);
+      var pts = placePoints_(s, value[x.cp], place);
+      var r = byNick[x.nick] || (byNick[x.nick] = { nick: x.nick, score: 0, reachedAt: 0, scans: [] });
+      r.score += pts;
+      r.reachedAt = Math.max(r.reachedAt, x.at);
+      r.scans.push([x.cp, x.at, place, pts]);
+    });
   return Object.keys(byNick)
     .map(function (k) { return byNick[k]; })
     .sort(function (a, b) { return b.score - a.score || a.reachedAt - b.reachedAt; });
@@ -638,13 +659,16 @@ function refreshQr() {
     return s || (String(t.get(r, "id")).trim() ? Utilities.getUuid().replace(/-/g, "").slice(0, 12) : "");
   });
   var linkCol = colLetter_(t.col.link + 1);
+  // на финише сканировать не нужно: ни ссылки, ни QR
+  var scannable = t.rows.map(function (r) {
+    return String(t.get(r, "id")).trim() && !YES.test(String(t.get(r, "final")).trim());
+  });
   write("secret", secrets);
   write("link", t.rows.map(function (r, i) {
-    var id = String(t.get(r, "id")).trim();
-    return id ? site + "?cp=" + encodeURIComponent(id) + "&k=" + secrets[i] : "";
+    return scannable[i] ? site + "?cp=" + encodeURIComponent(String(t.get(r, "id")).trim()) + "&k=" + secrets[i] : "";
   }));
   write("qr", t.rows.map(function (r, i) {
-    return String(t.get(r, "id")).trim()
+    return scannable[i]
       ? '=IMAGE("https://quickchart.io/qr?size=300&margin=1&text=" & ENCODEURL(' + linkCol + (i + 2) + "))"
       : "";
   }));

@@ -42,7 +42,7 @@ assert.equal(post({action:'register',telegram:'late',gender:'М',payment:'x'}).o
 st=get(); assert.equal(st.open,true); assert.equal(st.checkpoints.length,3); assert.ok(!('secret' in st.checkpoints[0])); assert.deepEqual(st.leaderboard,[]);
 r=post({action:'scan',nick:'bob_1',cp:'c1',k:'wrong',lat:c1[3],lng:c1[4]}); assert.match(r.error,/не подошёл/);
 r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3]+0.01,lng:c1[4],accuracy:10}); assert.equal(r.far,true); 
-r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3]+0.001,lng:c1[4],accuracy:10}); assert.equal(r.ok,true); assert.equal(r.value,1); 
+r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3]+0.001,lng:c1[4],accuracy:10}); assert.equal(r.ok,true); assert.equal(r.value,10,'первый на точке ×1'); assert.equal(r.place,1); 
 r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4]}); assert.equal(r.already,true);
 r=post({action:'scan',nick:'blocked_guy',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4]}); assert.match(r.error,/не допущен/);
 r=post({action:'scan',nick:'ghost',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4]}); assert.match(r.error,/Войди/);
@@ -50,7 +50,8 @@ r=post({action:'scan',nick:'bob_1',cp:'c2',k:c2[7],lat:c2[3],lng:c2[4],accuracy:
 r=post({action:'scan',nick:'fixie_masha',cp:'c2',k:c2[7],lat:c2[3],lng:c2[4],accuracy:5}); assert.equal(r.ok,true);
 r=post({action:'scan',nick:'bob_1',cp:'c2',k:c2[7],lat:c2[3],lng:c2[4],accuracy:5}); assert.equal(r.ok,true);
 st=get();
-assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],['fixie_masha',2]]);
+// c2 ценность 2: masha первая (20), bob второй (18); c1: bob первый (10)
+assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',28],['fixie_masha',20]]);
 // «Гонка только после оплаты»
 S('Настройки').data.find(r=>r[0]==='Гонка только после оплаты')[1]='да';
 r=post({action:'scan',nick:'early_bird',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:5}); assert.match(r.error,/Оплата/);
@@ -58,7 +59,17 @@ S('Настройки').data.find(r=>r[0]==='Гонка только после 
 // повторный setup не затирает настройки и не дублирует строки
 const before=JSON.stringify(S('Настройки').data); ctx.setup(); assert.equal(JSON.stringify(S('Настройки').data),before);
 r=post({action:'scan',nick:'fixie_masha',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:5}); 
-st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',3],['fixie_masha',3]],'tie: earlier first');
+st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['fixie_masha',29],['bob_1',28]],'masha вторая на c1: +9');
+assert.deepEqual(st.leaderboard[0].scans.map(x=>x.slice(2)),[[1,20],[2,9]],'в топе видно место и очки на каждой точке');
+// правило очков: минимум, множитель, равенство по времени
+{ const sx={firstPoints:3,minPoints:1}; const P=[{id:'a',value:1},{id:'b',value:2},{id:'f',value:5,final:true}];
+  const sc=[['u1','a',1],['u2','a',2],['u3','a',3],['u4','a',4],['u4','b',5],['u3','b',6],['u1','f',7]].map(([nick,cp,at])=>({nick,cp,at}));
+  const lb=ctx.leaderboard_(sx,P,sc).map(x=>[x.nick,x.score]);
+  // a: 3,2,1,1 ; b(×2): u4 6, u3 4 ; финиш не считается
+  assert.deepEqual(lb,[['u4',7],['u3',5],['u1',3],['u2',2]]);
+  const P2=[{id:'a',value:1},{id:'c',value:1}];
+  const tie=ctx.leaderboard_(sx,P2,[{nick:'y',cp:'c',at:2},{nick:'x',cp:'a',at:1}]).map(x=>[x.nick,x.score]);
+  assert.deepEqual(tie,[['x',3],['y',3]],'при равенстве выше тот, кто набрал раньше'); }
 
 
 // описание, фото и координаты точек; перестройка старых листов
@@ -119,7 +130,7 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   g6.ctx.setup();
   assert.deepEqual(pts.data.slice(1).map(r=>r[0]),["p2","p1","fin","","p3"]);
   assert.equal(pts.data[2][5],'s1','чужой секрет не меняется');
-  pts.data.slice(1).forEach(r=>{ if(r[0]){ assert.ok(r[5]); assert.match(r[6],new RegExp('\\?cp='+r[0]+'&k='+r[5]+'$')); } else assert.equal(r[6],''); });
+  pts.data.slice(1).forEach(r=>{ if(r[0]&&r[4]!=='да'){ assert.ok(r[5]); assert.match(r[6],new RegExp('\\?cp='+r[0]+'&k='+r[5]+'$')); } else { assert.equal(r[6],''); assert.equal(r[7],''); } });
 }
 
 // служебные команды по ключу администратора
@@ -130,7 +141,7 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.equal(call({op:'points'}).error,'Нет доступа'); assert.equal(call({op:'points',key:'wrong'}).error,'Нет доступа');
   const pts=g7.sheets['Точки'].data; pts[1][0]=''; pts[1][5]=''; pts[1][6]='';
   const res=call({op:'refresh',key}); assert.equal(res.ok,true); assert.equal(res.points[0].id,'p1'); assert.ok(res.points[0].secret);
-  assert.match(res.points[0].link,/\?cp=p1&k=/); assert.equal(res.points[2].id,'fin');
+  assert.match(res.points[0].link,/\?cp=p1&k=/); assert.equal(res.points[2].id,'fin'); assert.equal(res.points[2].link,'','у финиша нет QR');
   assert.equal(call({op:'points',key}).points.length,3);
   keyRow[1]=''; assert.equal(call({op:'points',key:''}).error,'Нет доступа','пустой ключ не открывает');
 }
@@ -156,6 +167,22 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   r=post({action:'admin',op:'coords',key,id:'c1',lat:55.7612345,lng:49.1234567}); assert.equal(r.coords,'55.761235, 49.123457');
   assert.equal(row[2],'55.761235, 49.123457');
   assert.match(post({action:'admin',op:'coords',key,id:'nope',lat:1,lng:2}).error,/нет в таблице/);
+}
+
+// финиш: не сканируется и не идёт в зачёт
+{ const {load:l9}=require('./gas-mock'); const g9=l9(); g9.ctx.setup();
+  const S9=n=>g9.sheets[n]; S9('Настройки').data.find(r=>r[0]==='Старт')[1]=new Date(Date.now()+3600e3).toISOString();
+  const key=S9('Настройки').data.find(r=>r[0]==='Ключ администратора')[1];
+  const post=b=>JSON.parse(g9.ctx.doPost({postData:{contents:JSON.stringify(b)}}).s);
+  post({action:'register',telegram:'rider1',gender:'М',payment:'x'});
+  S9('Настройки').data.find(r=>r[0]==='Старт')[1]=new Date(Date.now()-1000).toISOString();
+  const finRow=S9('Точки').data.find(r=>r[0]==='fin'); assert.equal(finRow[6],''); assert.equal(finRow[7],'');
+  const [la,ln]=finRow[2].split(',').map(Number);
+  assert.match(post({action:'scan',nick:'rider1',cp:'fin',k:finRow[5],lat:la,lng:ln}).error,/финише/);
+  assert.match(post({action:'scan',test:key,cp:'fin',k:finRow[5],lat:la,lng:ln}).error,/финиш/);
+  // даже если в «Сканах» оказалась строка финиша, в очки она не идёт
+  S9('Сканы').data.push([new Date(),'rider1','fin',5,0,5,'ok']); g9.cache.clear();
+  assert.deepEqual(JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s).leaderboard,[]);
 }
 
 // без setup - понятная ошибка

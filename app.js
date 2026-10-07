@@ -90,17 +90,25 @@
     const regs = { [R.demoUser.nick]: { amount: 300, paid: true } };
     const price = (g) => (g === "Ж" ? 0 : Date.now() < Date.parse("2026-10-26T00:00:00+03:00") ? 300 : 600);
 
+    // как на сервере: первый на точке получает 10, следующий на 1 меньше (не меньше 1), × ценность
+    const placePts = (value, place) => value * Math.max(10 - (place - 1), 1);
     function board() {
       const all = R.riders.map((r) => ({ nick: r.nick, scans: r.scans.map(([id, m]) => [id, at(m)]) }));
       if (mine.length) all.push({ nick: R.demoUser.nick, scans: mine });
-      return all
-        .map((r) => ({
-          nick: r.nick,
-          scans: r.scans,
-          score: r.scans.reduce((s, [id]) => s + byId[id].value, 0),
-          reachedAt: Math.max(...r.scans.map((x) => x[1])),
-        }))
-        .sort((a, b) => b.score - a.score || a.reachedAt - b.reachedAt);
+      const flat = [];
+      all.forEach((r) => r.scans.forEach(([id, t]) => flat.push({ nick: r.nick, id, t })));
+      const placed = {};
+      const rows = {};
+      flat.sort((a, b) => a.t - b.t).forEach((x) => {
+        if (byId[x.id].final) return;
+        const place = (placed[x.id] = (placed[x.id] || 0) + 1);
+        const pts = placePts(byId[x.id].value, place);
+        const r = rows[x.nick] || (rows[x.nick] = { nick: x.nick, score: 0, reachedAt: 0, scans: [] });
+        r.score += pts;
+        r.reachedAt = Math.max(r.reachedAt, x.t);
+        r.scans.push([x.id, x.t, place, pts]);
+      });
+      return Object.values(rows).sort((a, b) => b.score - a.score || a.reachedAt - b.reachedAt);
     }
 
     return {
@@ -143,8 +151,9 @@
         const d = distanceM(v, c);
         if (d > R.radius) return { ok: false, far: true, distance: Math.round(d), radius: R.radius, cp: v.cp };
         const t = at(75);
+        const place = board().reduce((n, r) => n + r.scans.filter((x) => x[0] === v.cp).length, 0) + 1;
         mine.push([v.cp, t]);
-        return { ok: true, cp: v.cp, value: c.value, distance: Math.round(d), at: t };
+        return { ok: true, cp: v.cp, value: placePts(c.value, place), place, distance: Math.round(d), at: t };
       },
     };
   })();
@@ -252,19 +261,25 @@
     renderBoard();
   }
 
+  // точки, которые надо сканировать (финиш не сканируется)
+  const scanPoints = () => state.checkpoints.filter((c) => !c.final);
+
   function renderMe() {
     const me = myRow();
     $("me").innerHTML =
       '<span class="me__nick">@' + esc(me.nick) + "</span>" +
       '<span class="me__stat"><b>' + me.score + "</b> очк.</span>" +
-      '<span class="me__stat"><b>' + me.scans.length + "/" + state.checkpoints.length + "</b> точек</span>" +
+      '<span class="me__stat"><b>' + me.scans.length + "/" + scanPoints().length + "</b> точек</span>" +
       '<span class="me__stat me__place"><b>' + (me.place ? "#" + me.place : "-") + "</b> в топе</span>" +
       (payment && !payment.paid ? '<span class="me__warn">оплата пока не подтверждена</span>' : "");
   }
 
   function renderCheckpoints() {
-    const taken = user ? Object.fromEntries(myRow().scans) : {};
-    $("cps").innerHTML = state.checkpoints
+    const taken = {}; // id точки → [время, место, очки]
+    if (user) myRow().scans.forEach((x) => (taken[x[0]] = x.slice(1)));
+    // финиш в конце списка
+    const list = scanPoints().concat(state.checkpoints.filter((c) => c.final));
+    $("cps").innerHTML = list
       .map((c) => {
         const t = taken[c.id];
         const map = "https://yandex.ru/maps/?pt=" + c.lng + "," + c.lat + "&z=17&l=map";
@@ -274,14 +289,19 @@
             ? '<a class="cp__photo" href="' + esc(c.photo) + '" target="_blank" rel="noopener">' +
               '<img src="' + esc(preview(c.photo)) + '" alt="' + esc(c.name) + '" loading="lazy" onerror="this.parentNode.remove()"></a>'
             : "") +
-          '<span class="cp__value" title="ценность точки">×' + c.value + "</span>" +
+          (c.final
+            ? '<span class="cp__value" title="финиш">🏁</span>'
+            : '<span class="cp__value" title="ценность точки">×' + c.value + "</span>") +
           '<div class="cp__body">' +
           (c.final ? '<span class="cp__flag">финиш</span>' : "") +
           "<h3>" + esc(c.name) + "</h3>" +
           (c.description ? '<p class="cp__desc">' + esc(c.description) + "</p>" : "") +
           '<a class="cp__map" href="' + map + '" target="_blank" rel="noopener">на карте ↗</a>' +
           "</div>" +
-          '<span class="cp__status">' + (t ? "✓ " + fmtTime(t) : user ? "не взята" : "") + "</span>" +
+          '<span class="cp__status">' +
+            (c.final ? "сканировать не нужно"
+              : t ? "✓ " + fmtTime(t[0]) + (t[1] ? " · " + t[1] + "-й · +" + t[2] : "")
+              : user ? "не взята" : "") + "</span>" +
           "</li>"
         );
       })
@@ -297,7 +317,7 @@
     $("board").innerHTML = board
       .map((r, i) => {
         const has = new Set(r.scans.map((s) => s[0]));
-        const dots = state.checkpoints.map((c) => '<i class="' + (has.has(c.id) ? "on" : "") + (c.final ? " fin" : "") + '"></i>').join("");
+        const dots = scanPoints().map((c) => '<i class="' + (has.has(c.id) ? "on" : "") + '"></i>').join("");
         return (
           '<li class="row' + (user && r.nick === user.nick ? " row--me" : "") + (i < 3 ? " row--top" : "") + '">' +
           '<span class="row__place">' + (i + 1) + "</span>" +
@@ -463,11 +483,12 @@
 
     await refresh();
     const me = myRow();
-    const final = (state.checkpoints.find((c) => c.id === cp) || {}).final;
+    const left = scanPoints().length - me.scans.length;
     showSheet("ok", name,
+      (res.place ? "Ты <b>" + res.place + "-й</b> на этой точке. " : "") +
       "+" + res.value + " очк. · " + fmtDistance(res.distance) + " от точки" +
         (me.place ? "<br>Теперь ты <b>#" + me.place + "</b> в топе." : "") +
-        (final ? "<br>Финиш! Паркуй велик, внутри награждение и туса." : ""),
+        (left > 0 ? "" : "<br>Все точки взяты! Гони на финиш в верк."),
       "Точка засчитана · " + fmtTime(res.at), "✓");
   }
 
