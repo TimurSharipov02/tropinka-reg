@@ -341,7 +341,7 @@
     $("cp-sheet-body").innerHTML =
       (c.photo
         ? '<a class="cpd__photo" href="' + esc(c.photo) + '" target="_blank" rel="noopener" title="Открыть фото целиком">' +
-          '<img src="' + esc(preview(c.photo)) + '" alt="Где висит QR: ' + esc(c.name) + '" onerror="this.parentNode.remove()"></a>'
+          '<img src="' + esc(preview(c.photo)) + '" alt="' + esc(c.name) + '" onerror="this.parentNode.remove()"></a>'
         : "") +
       '<div class="cpd__head">' +
         '<span class="cp__value">×' + c.value + "</span>" +
@@ -350,6 +350,11 @@
       (c.final ? '<p class="cpd__desc">Отмечается последним: после финиша точки не засчитываются.</p>' : "") +
       (c.description ? '<p class="cpd__desc">' + esc(c.description) + "</p>" : "") +
       '<a class="cpd__map" href="' + map + '" target="_blank" rel="noopener">Открыть на карте ↗</a>' +
+      (c.qrPhoto
+        ? '<h3 class="cpd__sub">Где висит QR</h3>' +
+          '<a class="cpd__photo" href="' + esc(c.qrPhoto) + '" target="_blank" rel="noopener" title="Открыть фото целиком">' +
+          '<img src="' + esc(preview(c.qrPhoto)) + '" alt="Где висит QR: ' + esc(c.name) + '" loading="lazy" onerror="this.parentNode.remove()"></a>'
+        : "") +
       '<h3 class="cpd__sub">Уже приехали' + (who.length ? " · " + who.length : "") + "</h3>" +
       (who.length
         ? '<ol class="arrivals">' + who.map((x) =>

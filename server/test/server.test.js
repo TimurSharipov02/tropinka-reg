@@ -73,7 +73,7 @@ assert.deepEqual(st.leaderboard[0].scans.map(x=>x.slice(2)),[[1,20],[2,9]],'в �
 
 
 // описание, фото и координаты точек; перестройка старых листов
-const NEW_HEAD=["ID","Название","Координаты","Ценность","Финиш","Секрет","Ссылка для QR","QR","Описание","Фото","Фото для сайта"];
+const NEW_HEAD=["ID","Название","Координаты","Ценность","Финиш","Секрет","Ссылка для QR","QR","Описание","Фото","Фото для сайта","Фото QR","Фото QR для сайта"];
 { const {load:l4}=require('./gas-mock'); const g4=l4();
   const pts=g4.ctx.SpreadsheetApp.getActive().insertSheet('Точки');
   // самый первый вид листа: широта/долгота отдельно и адрес
@@ -102,7 +102,15 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.equal(pts.data[3][9],img,'ячейку с фото не трогаем'); assert.equal(pts.data[3][8],'описание');
   g4.cache.clear(); let c3=JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[2];
   assert.equal(c3.photo,'https://drive.google.com/thumbnail?id=file00000000000000000001&sz=w1200');
-  g4.ctx.refreshQr(); assert.equal(g4.drive.files.length,2); assert.deepEqual(g4.drive.trashed,['file00000000000000000001']); assert.equal(g4.drive.folder,1);
+  g4.ctx.refreshQr(); assert.equal(g4.drive.files.length,1,'то же фото не перевыкладывается'); assert.match(pts.data[3][10],/file0+1\/view/);
+  g4.drive.content['https://lh3.googleusercontent.com/tmp-image']='новое фото'; g4.ctx.refreshQr();
+  assert.equal(g4.drive.files.length,2,'новое фото выкладывается'); assert.deepEqual(g4.drive.trashed,['file00000000000000000001']); assert.equal(g4.drive.folder,1);
+  // второе фото: где висит QR
+  const qrImg={getContentUrl:()=>'https://lh3.googleusercontent.com/qr-place'};
+  pts.data[3][11]=qrImg; g4.ctx.refreshQr();
+  assert.equal(g4.drive.files.length,3); assert.equal(g4.drive.files[2].name,'точка c3 QR'); assert.match(pts.data[3][12],/drive\.google\.com\/file\/d\//);
+  g4.cache.clear(); const c3q=JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[2];
+  assert.match(c3q.qrPhoto,/thumbnail\?id=file0+3/); assert.match(c3q.photo,/thumbnail\?id=file0+2/);
   pts.data[3][9]=''; g4.ctx.refreshQr(); assert.equal(pts.data[3][10],''); assert.equal(g4.drive.trashed.length,2);
   g4.cache.clear(); assert.equal(JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[1].photo,'https://example.com/p.jpg');
 

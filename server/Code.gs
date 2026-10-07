@@ -23,7 +23,7 @@ var SHEETS = {
 
 var HEADERS = {
   regs: ["Время", "Ник", "Пол", "Источник оплаты", "Сумма, ₽", "Оплачено", "Допуск"],
-  points: ["ID", "Название", "Координаты", "Ценность", "Финиш", "Секрет", "Ссылка для QR", "QR", "Описание", "Фото", "Фото для сайта"],
+  points: ["ID", "Название", "Координаты", "Ценность", "Финиш", "Секрет", "Ссылка для QR", "QR", "Описание", "Фото", "Фото для сайта", "Фото QR", "Фото QR для сайта"],
   scans: ["Время", "Ник", "Точка", "Очки", "Расстояние, м", "Точность, м", "Статус"],
 };
 
@@ -45,7 +45,8 @@ var DEFAULT_SETTINGS = [
 var P = {
   id: "ID", name: "Название", coords: "Координаты", value: "Ценность", final: "Финиш",
   secret: "Секрет", link: "Ссылка для QR", qr: "QR", description: "Описание",
-  photo: "Фото", photoSite: "Фото для сайта",
+  photo: "Фото", photoSite: "Фото для сайта", // для красоты
+  photoQr: "Фото QR", photoQrSite: "Фото QR для сайта", // где висит QR
 };
 var PHOTO_FOLDER = "FGK CloseSeason 26, фото точек";
 
@@ -334,6 +335,8 @@ function adminPoints_(s) {
       description: String(t.get(r, "description")).trim(),
       photo: photo && typeof photo === "object" ? "[фото в ячейке]" : String(photo || "").trim(),
       photoSite: String(t.get(r, "photoSite")).trim(),
+      photoQr: (function (v) { return v && typeof v === "object" ? "[фото в ячейке]" : String(v || "").trim(); })(t.get(r, "photoQr")),
+      photoQrSite: String(t.get(r, "photoQrSite")).trim(),
     };
   });
 }
@@ -379,6 +382,7 @@ function readPoints_() {
         secret: String(t.get(r, "secret")).trim(),
         description: String(t.get(r, "description") || "").trim(),
         photo: photoUrl_(t.get(r, "photoSite")) || photoUrl_(t.get(r, "photo")),
+        qrPhoto: photoUrl_(t.get(r, "photoQrSite")) || photoUrl_(t.get(r, "photoQr")),
       };
     });
 }
@@ -412,7 +416,7 @@ function parseCoords_(v) {
 function publicPoint_(p) {
   return {
     id: p.id, name: p.name, lat: p.lat, lng: p.lng, value: p.value, final: p.final,
-    description: p.description, photo: p.photo,
+    description: p.description, photo: p.photo, qrPhoto: p.qrPhoto,
   };
 }
 
@@ -700,7 +704,8 @@ function refreshQr() {
       ? '=IMAGE("https://quickchart.io/qr?size=300&margin=1&text=" & ENCODEURL(' + linkCol + (i + 2) + "))"
       : "";
   }));
-  write("photoSite", t.rows.map(function (r) { return syncPhoto_(t, r); }));
+  write("photoSite", t.rows.map(function (r) { return syncPhoto_(t, r, "photo", "photoSite", ""); }));
+  write("photoQrSite", t.rows.map(function (r) { return syncPhoto_(t, r, "photoQr", "photoQrSite", " QR"); }));
 
   t.sh.setRowHeights(2, n, 120);
   if (t.col.qr >= 0) t.sh.setColumnWidth(t.col.qr + 1, 130);
@@ -731,20 +736,28 @@ function colLetter_(n) {
 }
 // Фото, вставленное в ячейку («Вставка → Изображение → Изображение в ячейке»),
 // сохраняем на Диск с доступом по ссылке; в ответ - ссылка для сайта.
-function syncPhoto_(t, r) {
-  var cell = t.get(r, "photo");
-  var old = String(t.get(r, "photoSite") || "").trim();
+function syncPhoto_(t, r, from, to, suffix) {
+  var cell = t.get(r, from);
+  var old = String(t.get(r, to) || "").trim();
+  var id = String(t.get(r, "id")).trim();
   var isImage = cell && typeof cell === "object" && typeof cell.getContentUrl === "function";
+  var props = PropertiesService.getScriptProperties();
+  var hashKey = "photoHash_" + id + suffix;
   if (!isImage) {
     trashPhoto_(old);
+    props.deleteProperty(hashKey);
     return "";
   }
   var blob = UrlFetchApp.fetch(cell.getContentUrl(), {
     headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
-  }).getBlob().setName("точка " + String(t.get(r, "id")).trim());
+  }).getBlob().setName("точка " + id + suffix);
+  // фото не менялось — оставляем уже выложенное
+  var hash = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, blob.getBytes()));
+  if (old && props.getProperty(hashKey) === hash) return old;
   var file = photoFolder_().createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   trashPhoto_(old); // прошлую версию фото этой точки убираем, чтобы не копились
+  props.setProperty(hashKey, hash);
   return "https://drive.google.com/file/d/" + file.getId() + "/view";
 }
 

@@ -21,16 +21,16 @@ class Sheet {
 }
 function load(file){
   const sheets={};
-  const cache=new Map(), props={}, triggers=[], drive={folder:0,n:0,files:[],trashed:[],fetched:[]}, alerts=[];
+  const cache=new Map(), props={}, triggers=[], drive={folder:0,n:0,files:[],trashed:[],fetched:[],content:{}}, alerts=[];
   const ctx={console,JSON,Math,Date,Number,String,Object,Error,isFinite,encodeURIComponent,
     SpreadsheetApp:{getUi:()=>({alert:m=>alerts.push(m)}),getActive:()=>({getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new Sheet(n)),getSheets:()=>Object.values(sheets)})},
-    PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]??null,setProperty:(k,v)=>{props[k]=v;},setProperties:o=>Object.assign(props,o)})},
+    PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]??null,setProperty:(k,v)=>{props[k]=v;},setProperties:o=>Object.assign(props,o),deleteProperty:k=>{delete props[k];}})},
     ScriptApp:{getOAuthToken:()=>'tok',getProjectTriggers:()=>triggers,newTrigger:h=>({forSpreadsheet:()=>({onFormSubmit:()=>({create:()=>triggers.push({getHandlerFunction:()=>h})})})})},
     CacheService:{getScriptCache:()=>({get:k=>{const e=cache.get(k);return e&&e.exp>Date.now()?e.v:null;},put:(k,v,s)=>cache.set(k,{v,exp:Date.now()+s*1000}),remove:k=>cache.delete(k)})},
     LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock(){}})},
     ContentService:{MimeType:{JSON:'json'},createTextOutput:s=>({s,setMimeType(){return this;}})},
-    Utilities:{getUuid:()=>crypto.randomUUID()},
-    UrlFetchApp:{fetch:(url)=>{drive.fetched.push(url);return {getBlob:()=>({setName(n){this.name=n;return this;}})};}},
+    Utilities:{getUuid:()=>crypto.randomUUID(),DigestAlgorithm:{MD5:'md5'},computeDigest:(a,b)=>crypto.createHash('md5').update(b).digest(),base64Encode:b=>Buffer.from(b).toString('base64')},
+    UrlFetchApp:{fetch:(url)=>{drive.fetched.push(url);return {getBlob:()=>({setName(n){this.name=n;return this;},getBytes:()=>Buffer.from(drive.content[url]||url)})};}},
     DriveApp:{Access:{ANYONE_WITH_LINK:'any'},Permission:{VIEW:'view'},
       getFoldersByName:()=>({hasNext:()=>drive.folder>0,next:()=>folderObj}),createFolder:()=>{drive.folder++;return folderObj;},
       getFileById:id=>({setTrashed:()=>drive.trashed.push(id)})}};
