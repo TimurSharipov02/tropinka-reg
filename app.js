@@ -583,7 +583,7 @@
     await loadMyStatus();
     const isFinal = (state.checkpoints.find((c) => c.id === cp) || {}).final;
     showSheet("ok", name,
-      isFinal ? "Финиш! Паркуй велик, внутри награждение и туса." : "Гони к следующей точке.",
+      isFinal ? "Финиш! Паркуй велик, внутри награждение и туса." : "",
       "Точка засчитана · " + fmtTime(res.at), "✓");
   }
 
