@@ -263,16 +263,14 @@
   const raceEnded = () => state && state.end && now() >= state.end;
 
   function renderRace() {
-    $("race-clock").textContent = fmtTime(now());
     const ended = raceEnded();
     $("live").classList.toggle("is-ended", Boolean(ended));
-    $("live-text").firstChild.textContent = ended ? "Аллейкат завершён · " : "Аллейкат идёт · ";
-    $("live-sub").textContent = ended ? "Итоги ниже, во вкладке «Топ»" : "Регистрация закрыта";
-    $("end-countdown").hidden = !state.end || ended;
-    if (state.end && !ended) {
-      $("end-left").textContent = fmtLeft(state.end - now());
-      $("end-time").textContent = fmtTime(state.end);
-    }
+    // вместо часов — сколько осталось до конца аллейката
+    $("race-clock").textContent = ended ? fmtTime(state.end) : state.end ? fmtLeft(state.end - now()) : fmtTime(now());
+    $("live-label").textContent = ended ? "Аллейкат завершён" : "Аллейкат идёт";
+    $("live-sub").textContent = ended
+      ? "Итоги ниже, во вкладке «Топ»"
+      : state.end ? "До конца. В " + fmtTime(state.end) + " сканы перестанут засчитываться" : "Регистрация закрыта";
     $("race-join").hidden = Boolean(user);
     $("me").hidden = !user;
     if (user) renderMe();
