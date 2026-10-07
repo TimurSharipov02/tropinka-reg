@@ -179,7 +179,7 @@
   }
 
   // в списке - уменьшенное фото с Google Диска (полное открывается по нажатию)
-  const preview = (url) => url.replace(/(drive\.google\.com\/thumbnail\?.*\bsz=)w\d+/, "$1w640");
+  const preview = (url, w) => url.replace(/(drive\.google\.com\/thumbnail\?.*\bsz=)w\d+/, "$1w" + (w || 640));
 
   // время старта берём из таблицы («Настройки → Старт»), а не из текста страницы
   const startFmt = (opts) =>
@@ -320,7 +320,7 @@
             (t ? ' · <b class="cp__mine">ты ' + (t[1] ? t[1] + "-й" : "✓") + "</b>" : "") + "</p>" +
           "</div>" +
           (c.photo
-            ? '<img class="cp__thumb" src="' + esc(preview(c.photo)) + '" alt="" loading="lazy" onerror="this.remove()">'
+            ? '<img class="cp__thumb" src="' + esc(preview(c.photo, 160)) + '" alt="" loading="lazy" onerror="this.remove()">'
             : '<span class="cp__chev" aria-hidden="true">›</span>') +
           "</li>"
         );
