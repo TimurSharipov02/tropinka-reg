@@ -482,15 +482,10 @@
     await refresh();
     const me = myRow();
     const isFinal = (state.checkpoints.find((c) => c.id === cp) || {}).final;
-    const taken = new Set(me.scans.map((x) => x[0]));
-    const left = scanPoints().filter((c) => !taken.has(c.id)).length;
     showSheet("ok", name,
-      (res.place ? "Ты <b>" + res.place + "-й</b> на этой точке. " : "") +
-      "+" + res.value + " очк. · " + fmtDistance(res.distance) + " от точки" +
+      (res.place ? "Ты <b>" + res.place + "-й</b> на этой точке." : "") +
         (me.place ? "<br>Теперь ты <b>#" + me.place + "</b> в топе." : "") +
-        (isFinal ? "<br>Финиш! Паркуй велик, внутри награждение и туса."
-          : left > 0 ? "<br>Финиш в верке отмечай последним: после него точки не засчитываются."
-          : "<br>Все точки взяты! Гони на финиш в верк."),
+        (isFinal ? "<br>Финиш! Паркуй велик, внутри награждение и туса." : ""),
       "Точка засчитана · " + fmtTime(res.at), "✓");
   }
 
