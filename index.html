@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FGK CloseSeason 26</title>
-  <meta name="description" content="Закрытие сезона FGK 30 октября: аллейкат по QR-точкам со стартом в 21:00, голдспринт и Halloween bass_u x werk.">
+  <meta name="description" content="Закрытие сезона FGK 30 октября: аллейкат по QR-точкам со стартом в 20:00, голдспринт и Halloween bass_u x werk.">
   <meta name="theme-color" content="#0d0b0a">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +25,7 @@
     <div class="hero__content">
       <p class="hero__kicker">FGK · закрытие сезона · 18+</p>
       <h1 class="hero__title">Close Season<span>26</span></h1>
-      <p class="hero__date"><time datetime="2026-10-30">30 октября</time><span>пятница · старт 21:00</span></p>
+      <p class="hero__date"><time datetime="2026-10-30" data-start="date">30 октября</time><span><span data-start="weekday">пятница</span> · старт <span data-start="time">20:00</span></span></p>
     </div>
     <div class="ticker" aria-hidden="true">
       <div class="ticker__track">
@@ -41,7 +41,7 @@
       <section class="countdown" aria-live="off">
         <p class="countdown__label">До старта аллейката</p>
         <p class="countdown__value" id="countdown">—</p>
-        <p class="countdown__note">В 21:00 регистрация закроется, а здесь появятся точки маршрута.</p>
+        <p class="countdown__note">В <span data-start="time">20:00</span> регистрация закроется, а здесь появятся точки маршрута.</p>
       </section>
 
       <section class="intro">
@@ -51,8 +51,8 @@
           <li class="route__step">
             <span class="route__num">01</span>
             <div>
-              <h2>Аллейкат <span class="tag tag--acid">21:00</span></h2>
-              <p>По городу развешены QR-коды. Адреса всех точек появятся здесь в 21:00. Сканируешь код на месте — очки засчитываются зарегистрированным: вход по нику из Telegram. <strong>Шлем обязателен.</strong></p>
+              <h2>Аллейкат <span class="tag tag--acid" data-start="time">20:00</span></h2>
+              <p>По городу развешены QR-коды. Адреса всех точек появятся здесь в <span data-start="time">20:00</span>. Сканируешь код на месте — очки засчитываются зарегистрированным: вход по нику из Telegram. <strong>Шлем обязателен.</strong></p>
             </div>
           </li>
           <li class="route__step">
@@ -92,7 +92,7 @@
 
       <form class="form" id="reg-form" novalidate>
         <h2 class="section-title">Регистрация</h2>
-        <p class="form__note"><span class="req">*</span> — обязательные поля · закрывается 30.10 в 21:00</p>
+        <p class="form__note"><span class="req">*</span> — обязательные поля · закрывается <span data-start="dm">30.10</span> в <span data-start="time">20:00</span></p>
 
         <div class="field" data-field="telegram">
           <label class="field__label" for="telegram">Ник в Telegram <span class="req">*</span></label>
@@ -137,7 +137,7 @@
 
       <section class="done" id="done" hidden tabindex="-1">
         <h2>Ты в списке!</h2>
-        <p id="done-text">30 октября в 21:00 здесь появятся точки маршрута. Не забудь шлем.</p>
+        <p id="done-text"><span data-start="date">30 октября</span> в <span data-start="time">20:00</span> здесь появятся точки маршрута. Не забудь шлем.</p>
 
         <div class="paybox" id="paybox" data-state="wait">
           <div class="paybox__head">
@@ -159,7 +159,7 @@
       </section>
     </div>
 
-    <!-- ===== с 21:00: гонка ===== -->
+    <!-- ===== со старта: гонка ===== -->
     <div class="view" id="race-view" hidden>
       <section class="live">
         <span class="live__dot" aria-hidden="true"></span>
@@ -225,10 +225,10 @@
   <!-- переключатель состояний — только для макета -->
   <nav class="demo" aria-label="Состояния макета">
     <span class="demo__label">макет</span>
-    <button type="button" data-demo="reg">До 21:00</button>
+    <button type="button" data-demo="reg">До старта</button>
     <button type="button" data-demo="pay">Оплата</button>
-    <button type="button" data-demo="guest">21:00 · без входа</button>
-    <button type="button" data-demo="racer">21:00 · участник</button>
+    <button type="button" data-demo="guest">Старт · без входа</button>
+    <button type="button" data-demo="racer">Старт · участник</button>
     <button type="button" data-demo="scan-ok">Скан ✓</button>
     <button type="button" data-demo="scan-far">Скан ✗</button>
     <button type="button" data-demo="scan-guest">Скан без входа</button>

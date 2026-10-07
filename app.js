@@ -172,6 +172,24 @@
   // в списке — уменьшенное фото с Google Диска (полное открывается по нажатию)
   const preview = (url) => url.replace(/(drive\.google\.com\/thumbnail\?.*\bsz=)w\d+/, "$1w640");
 
+  // время старта берём из таблицы («Настройки → Старт»), а не из текста страницы
+  const startFmt = (opts) =>
+    new Date(state ? state.start : Date.parse("2026-10-30T20:00:00+03:00"))
+      .toLocaleString("ru-RU", Object.assign({ timeZone: CFG.timezone || "Europe/Moscow" }, opts));
+  const START_PARTS = {
+    time: () => startFmt({ hour: "2-digit", minute: "2-digit" }),
+    date: () => startFmt({ day: "numeric", month: "long" }),
+    dm: () => startFmt({ day: "2-digit", month: "2-digit" }),
+    weekday: () => startFmt({ weekday: "long" }),
+  };
+  const startPhrase = () => START_PARTS.date() + " в " + START_PARTS.time();
+  function fillStartTexts() {
+    document.querySelectorAll("[data-start]").forEach((el) => {
+      const part = START_PARTS[el.dataset.start];
+      if (part) el.textContent = part();
+    });
+  }
+
   const fmtDistance = (m) => (m < 1000 ? Math.round(m) + " м" : (m / 1000).toFixed(1).replace(".", ",") + " км");
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -203,6 +221,7 @@
 
   function render() {
     if (!state) return;
+    fillStartTexts();
     const on = raceOn();
     if (on && !state.open) return refresh(); // старт наступил — забираем точки
     $("reg-view").hidden = on;
@@ -512,7 +531,7 @@
       signIn(res.nick);
       showDone(res, res.already
         ? "@" + res.nick + " уже был в списке — всё в силе."
-        : "30 октября в 21:00 здесь появятся точки маршрута. Не забудь шлем.");
+        : startPhrase() + " здесь появятся точки маршрута. Не забудь шлем.");
       done.focus();
     } catch (err) {
       $("form-status").textContent = "Нет связи с сервером, попробуй ещё раз";
@@ -553,7 +572,7 @@
     $("pay-note").textContent = free
       ? "Для девушек участие бесплатное — платить ничего не нужно."
       : status.paid
-        ? "Оплата подтверждена. Увидимся 30 октября в 21:00!"
+        ? "Оплата подтверждена. Увидимся " + startPhrase() + "!"
         : "Перевод по СБП без комиссии. Как только увидим его — отметим оплату, и статус здесь сменится.";
   }
 
@@ -563,7 +582,7 @@
       const res = await api.me(user.nick);
       if (!res.ok) return;
       payment = { amount: res.amount, paid: res.paid };
-      if (!raceOn()) showDone(res, "@" + res.nick + ", ты в списке. 30 октября в 21:00 здесь появятся точки маршрута.");
+      if (!raceOn()) showDone(res, "@" + res.nick + ", ты в списке. " + startPhrase() + " здесь появятся точки маршрута.");
       else render();
     } catch (err) { /* статус оплаты не критичен — покажем в следующий раз */ }
   }
@@ -604,7 +623,7 @@
     if (mode === "pay") {
       const res = await demo.register({ telegram: "night_rider", gender: "М" });
       signIn(res.nick);
-      showDone(res, "30 октября в 21:00 здесь появятся точки маршрута. Не забудь шлем.");
+      showDone(res, startPhrase() + " здесь появятся точки маршрута. Не забудь шлем.");
     }
     if (mode === "scan-ok") scan("c6", "demo", demo.fakePosition("c6"));
     if (mode === "scan-far") scan("c5", "demo", demo.fakePosition("c5", true));
