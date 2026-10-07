@@ -29,6 +29,7 @@ var HEADERS = {
 
 var DEFAULT_SETTINGS = [
   ["Старт", "2026-10-30T20:00:00+03:00"],
+  ["Конец", "2026-10-31T00:00:00+03:00"], // после этого сканы не принимаются
   ["Радиус, м", "150"],
   ["Адрес сайта", "https://timirsharipov.github.io/unpavedrace/"],
   ["Цена, ₽", "300"],
@@ -103,7 +104,10 @@ function getState_(testKey) {
   var now = Date.now();
   var test = isAdmin_(s, testKey);
   // в тестовом режиме (с ключом администратора) точки видны и до старта
-  var state = { now: now, start: s.start, radius: s.radius, open: now >= s.start || test, test: test };
+  var state = {
+    now: now, start: s.start, end: isFinite(s.end) ? s.end : null, radius: s.radius,
+    open: now >= s.start || test, test: test,
+  };
   if (!state.open) return state; // до старта точки не раскрываем
 
   var cache = CacheService.getScriptCache();
@@ -199,6 +203,7 @@ function scan_(body) {
     };
 
     if (Date.now() < s.start) fail(null, "рано", "Сканы засчитываются с момента старта");
+    if (Date.now() > s.end) fail(null, "после конца", "Аллейкат закончился, сканы больше не принимаются");
 
     var reg = nick && findRegistration_(nick);
     if (!reg) fail(null, "нет регистрации", "Войди ником из регистрации");
@@ -345,6 +350,7 @@ function settings_() {
   change = change instanceof Date ? change.getTime() : Date.parse(String(change));
   return {
     start: start,
+    end: parseTime_(map["Конец"]),
     radius: Number(map["Радиус, м"]) || 150,
     site: String(map["Адрес сайта"] || "").trim(),
     priceEarly: Number(map["Цена, ₽"]) || 0,
@@ -391,6 +397,11 @@ function pointsTable_() {
     get: function (r, k) { return col[k] >= 0 ? r[col[k]] : ""; },
   };
 }
+function parseTime_(v) {
+  var t = v instanceof Date ? v.getTime() : Date.parse(String(v || ""));
+  return isFinite(t) ? t : Infinity;
+}
+
 // «55.752000, 37.617500» - как копируют из Яндекс и Google Карт (подойдёт и «55,752; 37,6175»)
 function parseCoords_(v) {
   var m = String(v || "").match(/(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)/);

@@ -121,7 +121,7 @@
       },
       async state() {
         const t = mode === "reg" || mode === "pay" ? Date.now() : at(75);
-        const s = { now: t, start: START, radius: R.radius, open: t >= START };
+        const s = { now: t, start: START, end: Date.parse(R.end), radius: R.radius, open: t >= START };
         if (s.open) Object.assign(s, { checkpoints: R.checkpoints, leaderboard: board() });
         return s;
       },
@@ -252,8 +252,27 @@
     $("countdown").textContent = d + " д " + String(h).padStart(2, "0") + " ч " + String(m).padStart(2, "0") + " мин";
   }
 
+  // «2 ч 05 мин» / «3 д 04 ч 12 мин»
+  function fmtLeft(ms) {
+    const d = Math.floor(ms / (24 * 60 * MIN));
+    const h = Math.floor((ms / (60 * MIN)) % 24);
+    const m = Math.floor((ms / MIN) % 60);
+    return (d ? d + " д " : "") + (d || h ? String(h).padStart(d ? 2 : 1, "0") + " ч " : "") + String(m).padStart(2, "0") + " мин";
+  }
+
+  const raceEnded = () => state && state.end && now() >= state.end;
+
   function renderRace() {
     $("race-clock").textContent = fmtTime(now());
+    const ended = raceEnded();
+    $("live").classList.toggle("is-ended", Boolean(ended));
+    $("live-text").firstChild.textContent = ended ? "Аллейкат завершён · " : "Аллейкат идёт · ";
+    $("live-sub").textContent = ended ? "Итоги ниже, во вкладке «Топ»" : "Регистрация закрыта";
+    $("end-countdown").hidden = !state.end || ended;
+    if (state.end && !ended) {
+      $("end-left").textContent = fmtLeft(state.end - now());
+      $("end-time").textContent = fmtTime(state.end);
+    }
     $("race-join").hidden = Boolean(user);
     $("me").hidden = !user;
     if (user) renderMe();
@@ -291,13 +310,14 @@
             : "") +
           '<span class="cp__value" title="ценность точки">×' + c.value + "</span>" +
           '<div class="cp__body">' +
-          (c.final ? '<span class="cp__flag">финиш · отмечается последним</span>' : "") +
+          (c.final ? '<span class="cp__flag">финиш</span>' : "") +
           "<h3>" + esc(c.name) + "</h3>" +
+          (c.final ? '<p class="cp__desc">Отмечается последним: после финиша точки не засчитываются.</p>' : "") +
           (c.description ? '<p class="cp__desc">' + esc(c.description) + "</p>" : "") +
           '<a class="cp__map" href="' + map + '" target="_blank" rel="noopener">на карте ↗</a>' +
           "</div>" +
           '<span class="cp__status">' +
-            (t ? "✓ " + fmtTime(t[0]) + (t[1] ? " · " + t[1] + "-й · +" + t[2] : "")
+            (t ? "✓ " + fmtTime(t[0]) + (t[1] ? " · " + t[1] + "-й" : "")
               : user ? "не взята" : "") + "</span>" +
           "</li>"
         );
@@ -447,6 +467,7 @@
 
   async function scan(cp, k, fakePosition) {
     if (testKey) return testScan(cp, k);
+    if (raceEnded()) return showSheet("far", cpName(cp), "Аллейкат закончился, сканы больше не принимаются.", "Финиш гонки", "⏱");
     if (!raceOn()) return showSheet("far", "Ещё рано", "Сканы засчитываются с момента старта.", "До старта", "⏳");
     const name = cpName(cp);
     if (!user) {

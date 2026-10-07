@@ -190,6 +190,22 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.equal(JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s).leaderboard[0].score,50);
 }
 
+// конец аллейката: после него сканы не принимаются, тестовые работают
+{ const {load:l10}=require('./gas-mock'); const g=l10(); g.ctx.setup();
+  const set=(k,v)=>g.sheets['Настройки'].data.find(r=>r[0]===k)[1]=v;
+  assert.ok(g.sheets['Настройки'].data.find(r=>r[0]==='Конец'),'setup добавил «Конец»');
+  set('Старт',new Date(Date.now()+3600e3).toISOString());
+  const post=b=>JSON.parse(g.ctx.doPost({postData:{contents:JSON.stringify(b)}}).s);
+  post({action:'register',telegram:'late_rider',gender:'М',payment:'x'});
+  set('Старт',new Date(Date.now()-7200e3).toISOString()); set('Конец',new Date(Date.now()-1000).toISOString());
+  const st=JSON.parse(g.ctx.doGet({parameter:{action:'state'}}).s); assert.ok(st.end<Date.now()); assert.equal(st.open,true);
+  const c1=g.sheets['Точки'].data.find(r=>r[0]==='c1'); const [la,ln]=c1[2].split(',').map(Number);
+  assert.match(post({action:'scan',nick:'late_rider',cp:'c1',k:c1[5],lat:la,lng:ln}).error,/закончился/);
+  const key=g.sheets['Настройки'].data.find(r=>r[0]==='Ключ администратора')[1];
+  assert.equal(post({action:'scan',test:key,cp:'c1',k:c1[5],lat:la,lng:ln}).ok,true,'тест работает и после конца');
+  set('Конец',''); assert.equal(JSON.parse(g.ctx.doGet({parameter:{action:'state'}}).s).end,null,'без конца - не ограничено');
+}
+
 // без setup - понятная ошибка
 { const {load:l3}=require('./gas-mock'); const g3=l3();
   assert.match(JSON.parse(g3.ctx.doGet({parameter:{action:'state'}}).s).error,/setup/); }
