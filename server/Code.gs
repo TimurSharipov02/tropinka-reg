@@ -126,7 +126,7 @@ function register_(body) {
   var payment = String(body.payment || "").trim().slice(0, 200);
   if (!nick) throw userError_("Проверь ник в Telegram: латиница, цифры и _");
   if (gender !== "М" && gender !== "Ж") throw userError_("Выбери пол");
-  if (!payment) throw userError_("Укажи источник оплаты");
+  if (!payment) throw userError_("Укажи, с чьей карты перевод");
 
   return withLock_(function () {
     var existing = findRegistration_(nick);
