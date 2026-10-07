@@ -512,7 +512,7 @@
       signIn(res.nick);
       showDone(res, res.already
         ? "@" + res.nick + " уже был в списке — всё в силе."
-        : "30 октября в 21:00 здесь появятся точки маршрута — ты в игре под @" + res.nick + ". Не забудь шлем.");
+        : "30 октября в 21:00 здесь появятся точки маршрута. Не забудь шлем.");
       done.focus();
     } catch (err) {
       $("form-status").textContent = "Нет связи с сервером, попробуй ещё раз";
@@ -604,7 +604,7 @@
     if (mode === "pay") {
       const res = await demo.register({ telegram: "night_rider", gender: "М" });
       signIn(res.nick);
-      showDone(res, "30 октября в 21:00 здесь появятся точки маршрута — ты в игре под @" + res.nick + ". Не забудь шлем.");
+      showDone(res, "30 октября в 21:00 здесь появятся точки маршрута. Не забудь шлем.");
     }
     if (mode === "scan-ok") scan("c6", "demo", demo.fakePosition("c6"));
     if (mode === "scan-far") scan("c5", "demo", demo.fakePosition("c5", true));
