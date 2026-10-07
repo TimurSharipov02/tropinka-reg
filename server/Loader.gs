@@ -83,10 +83,12 @@ function readBackup_() {
 }
 
 // Никогда не вызывается: по этим строкам Google понимает, какие разрешения
-// нужны серверу (таблица, Диск, блокировки, триггеры).
+// нужны серверу: таблица, запись на Диск (фото точек), блокировки, триггеры.
 function permissions_() {
   SpreadsheetApp.getActive();
-  DriveApp.getRootFolder();
+  DriveApp.createFolder("").createFile(Utilities.newBlob("")).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  DriveApp.getFileById("").setTrashed(true);
   LockService.getScriptLock();
-  ScriptApp.getProjectTriggers();
+  ScriptApp.newTrigger("").forSpreadsheet("").onFormSubmit().create();
+  ScriptApp.getOAuthToken();
 }
