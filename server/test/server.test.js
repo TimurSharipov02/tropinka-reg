@@ -65,8 +65,8 @@ assert.deepEqual(st.leaderboard[0].scans.map(x=>x.slice(2)),[[1,20],[2,9]],'в �
 { const sx={firstPoints:3,minPoints:1}; const P=[{id:'a',value:1},{id:'b',value:2},{id:'f',value:5,final:true}];
   const sc=[['u1','a',1],['u2','a',2],['u3','a',3],['u4','a',4],['u4','b',5],['u3','b',6],['u1','f',7]].map(([nick,cp,at])=>({nick,cp,at}));
   const lb=ctx.leaderboard_(sx,P,sc).map(x=>[x.nick,x.score]);
-  // a: 3,2,1,1 ; b(×2): u4 6, u3 4 ; финиш не считается
-  assert.deepEqual(lb,[['u4',7],['u3',5],['u1',3],['u2',2]]);
+  // a: 3,2,1,1 ; b(×2): u4 6, u3 4 ; финиш ×5: u1 первый 15
+  assert.deepEqual(lb,[['u1',18],['u4',7],['u3',5],['u2',2]]);
   const P2=[{id:'a',value:1},{id:'c',value:1}];
   const tie=ctx.leaderboard_(sx,P2,[{nick:'y',cp:'c',at:2},{nick:'x',cp:'a',at:1}]).map(x=>[x.nick,x.score]);
   assert.deepEqual(tie,[['x',3],['y',3]],'при равенстве выше тот, кто набрал раньше'); }
@@ -130,7 +130,7 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   g6.ctx.setup();
   assert.deepEqual(pts.data.slice(1).map(r=>r[0]),["p2","p1","fin","","p3"]);
   assert.equal(pts.data[2][5],'s1','чужой секрет не меняется');
-  pts.data.slice(1).forEach(r=>{ if(r[0]&&r[4]!=='да'){ assert.ok(r[5]); assert.match(r[6],new RegExp('\\?cp='+r[0]+'&k='+r[5]+'$')); } else { assert.equal(r[6],''); assert.equal(r[7],''); } });
+  pts.data.slice(1).forEach(r=>{ if(r[0]){ assert.ok(r[5]); assert.match(r[6],new RegExp('\\?cp='+r[0]+'&k='+r[5]+'$')); } else assert.equal(r[6],''); });
 }
 
 // служебные команды по ключу администратора
@@ -141,7 +141,7 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.equal(call({op:'points'}).error,'Нет доступа'); assert.equal(call({op:'points',key:'wrong'}).error,'Нет доступа');
   const pts=g7.sheets['Точки'].data; pts[1][0]=''; pts[1][5]=''; pts[1][6]='';
   const res=call({op:'refresh',key}); assert.equal(res.ok,true); assert.equal(res.points[0].id,'p1'); assert.ok(res.points[0].secret);
-  assert.match(res.points[0].link,/\?cp=p1&k=/); assert.equal(res.points[2].id,'fin'); assert.equal(res.points[2].link,'','у финиша нет QR');
+  assert.match(res.points[0].link,/\?cp=p1&k=/); assert.equal(res.points[2].id,'fin'); assert.match(res.points[2].link,/cp=fin/);
   assert.equal(call({op:'points',key}).points.length,3);
   g7.sheets['Настройки'].data=g7.sheets['Настройки'].data.filter(r=>r[0]!=='Очки за первое место');
   assert.equal(call({op:'setup',key}).done,true); assert.ok(g7.sheets['Настройки'].data.find(r=>r[0]==='Очки за первое место'),'setup по ключу дописал настройку');
@@ -171,20 +171,23 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.match(post({action:'admin',op:'coords',key,id:'nope',lat:1,lng:2}).error,/нет в таблице/);
 }
 
-// финиш: не сканируется и не идёт в зачёт
+// финиш: сканируется последним, после него точки не засчитываются
 { const {load:l9}=require('./gas-mock'); const g9=l9(); g9.ctx.setup();
-  const S9=n=>g9.sheets[n]; S9('Настройки').data.find(r=>r[0]==='Старт')[1]=new Date(Date.now()+3600e3).toISOString();
-  const key=S9('Настройки').data.find(r=>r[0]==='Ключ администратора')[1];
+  const S9=n=>g9.sheets[n]; const st=S9('Настройки').data.find(r=>r[0]==='Старт');
+  st[1]=new Date(Date.now()+3600e3).toISOString();
   const post=b=>JSON.parse(g9.ctx.doPost({postData:{contents:JSON.stringify(b)}}).s);
   post({action:'register',telegram:'rider1',gender:'М',payment:'x'});
-  S9('Настройки').data.find(r=>r[0]==='Старт')[1]=new Date(Date.now()-1000).toISOString();
-  const finRow=S9('Точки').data.find(r=>r[0]==='fin'); assert.equal(finRow[6],''); assert.equal(finRow[7],'');
-  const [la,ln]=finRow[2].split(',').map(Number);
-  assert.match(post({action:'scan',nick:'rider1',cp:'fin',k:finRow[5],lat:la,lng:ln}).error,/финише/);
-  assert.match(post({action:'scan',test:key,cp:'fin',k:finRow[5],lat:la,lng:ln}).error,/финиш/);
-  // даже если в «Сканах» оказалась строка финиша, в очки она не идёт
-  S9('Сканы').data.push([new Date(),'rider1','fin',5,0,5,'ok']); g9.cache.clear();
-  assert.deepEqual(JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s).leaderboard,[]);
+  st[1]=new Date(Date.now()-1000).toISOString();
+  const row=id=>S9('Точки').data.find(r=>r[0]===id); const fin=row('fin'), c1=row('c1');
+  assert.match(fin[6],/\?cp=fin&k=/,'у финиша есть QR');
+  const at=r=>r[2].split(',').map(Number);
+  let r=post({action:'scan',nick:'rider1',cp:'fin',k:fin[5],lat:at(fin)[0],lng:at(fin)[1]}); assert.equal(r.ok,true); assert.equal(r.value,50,'финиш ×5, первый');
+  r=post({action:'scan',nick:'rider1',cp:'c1',k:c1[5],lat:at(c1)[0],lng:at(c1)[1]}); assert.match(r.error,/после него/);
+  g9.cache.clear(); const lb=JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s).leaderboard;
+  assert.deepEqual(lb.map(x=>[x.nick,x.score,x.finished]),[['rider1',50,true]]);
+  // строка после финиша, попавшая в «Сканы» вручную, не считается
+  const t=Date.now()+5000; S9('Сканы').data.push([new Date(t),'rider1','c2',20,0,5,'ok']); g9.cache.clear();
+  assert.equal(JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s).leaderboard[0].score,50);
 }
 
 // без setup - понятная ошибка

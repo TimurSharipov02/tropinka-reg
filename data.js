@@ -15,13 +15,13 @@ window.RACE = {
     { id: "c5", name: "Старый трамвай", lat: 55.7390, lng: 37.6400, value: 2 },
     { id: "c6", name: "Холм", lat: 55.7700, lng: 37.6500, value: 3,
       description: "Самая злая горка маршрута. Код на столбе у скамейки." },
-    { id: "fin", name: "bass_u x werk", lat: 55.7555, lng: 37.6320, value: 5, final: true },
+    { id: "fin", name: "bass_u x werk", lat: 55.7555, lng: 37.6320, value: 2, final: true },
   ],
 
   // сканы других участников: [id точки, минут после старта]
   riders: [
-    { nick: "fixie_masha", scans: [["c2", 9], ["c4", 21], ["c6", 38], ["c5", 55]] },
-    { nick: "brakeless", scans: [["c1", 6], ["c3", 14], ["c5", 27], ["c6", 44]] },
+    { nick: "fixie_masha", scans: [["c2", 9], ["c4", 21], ["c6", 38], ["c5", 55], ["fin", 71]] },
+    { nick: "brakeless", scans: [["c1", 6], ["c3", 14], ["c5", 27], ["c6", 44], ["fin", 63]] },
     { nick: "skid_king", scans: [["c1", 5], ["c2", 12], ["c3", 19], ["c4", 30], ["c5", 47], ["c6", 66]] },
     { nick: "trackstand", scans: [["c4", 15], ["c6", 31]] },
     { nick: "night_owl", scans: [["c3", 11], ["c5", 25], ["c6", 49]] },

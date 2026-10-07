@@ -100,7 +100,6 @@
       const placed = {};
       const rows = {};
       flat.sort((a, b) => a.t - b.t).forEach((x) => {
-        if (byId[x.id].final) return;
         const place = (placed[x.id] = (placed[x.id] || 0) + 1);
         const pts = placePts(byId[x.id].value, place);
         const r = rows[x.nick] || (rows[x.nick] = { nick: x.nick, score: 0, reachedAt: 0, scans: [] });
@@ -148,6 +147,7 @@
         if (!c) return { ok: false, error: "Такой точки нет" };
         const had = mine.find((x) => x[0] === v.cp);
         if (had) return { ok: true, already: true, cp: v.cp, at: had[1] };
+        if (mine.some((x) => byId[x[0]].final)) return { ok: false, error: "Ты уже отметил финиш, после него точки не засчитываются" };
         const d = distanceM(v, c);
         if (d > R.radius) return { ok: false, far: true, distance: Math.round(d), radius: R.radius, cp: v.cp };
         const t = at(75);
@@ -261,7 +261,7 @@
     renderBoard();
   }
 
-  // точки, которые надо сканировать (финиш не сканируется)
+  // обычные точки (без финиша)
   const scanPoints = () => state.checkpoints.filter((c) => !c.final);
 
   function renderMe() {
@@ -269,7 +269,7 @@
     $("me").innerHTML =
       '<span class="me__nick">@' + esc(me.nick) + "</span>" +
       '<span class="me__stat"><b>' + me.score + "</b> очк.</span>" +
-      '<span class="me__stat"><b>' + me.scans.length + "/" + scanPoints().length + "</b> точек</span>" +
+      '<span class="me__stat"><b>' + me.scans.length + "/" + state.checkpoints.length + "</b> точек</span>" +
       '<span class="me__stat me__place"><b>' + (me.place ? "#" + me.place : "-") + "</b> в топе</span>" +
       (payment && !payment.paid ? '<span class="me__warn">оплата пока не подтверждена</span>' : "");
   }
@@ -289,18 +289,15 @@
             ? '<a class="cp__photo" href="' + esc(c.photo) + '" target="_blank" rel="noopener">' +
               '<img src="' + esc(preview(c.photo)) + '" alt="' + esc(c.name) + '" loading="lazy" onerror="this.parentNode.remove()"></a>'
             : "") +
-          (c.final
-            ? '<span class="cp__value" title="финиш">🏁</span>'
-            : '<span class="cp__value" title="ценность точки">×' + c.value + "</span>") +
+          '<span class="cp__value" title="ценность точки">×' + c.value + "</span>" +
           '<div class="cp__body">' +
-          (c.final ? '<span class="cp__flag">финиш</span>' : "") +
+          (c.final ? '<span class="cp__flag">финиш · отмечается последним</span>' : "") +
           "<h3>" + esc(c.name) + "</h3>" +
           (c.description ? '<p class="cp__desc">' + esc(c.description) + "</p>" : "") +
           '<a class="cp__map" href="' + map + '" target="_blank" rel="noopener">на карте ↗</a>' +
           "</div>" +
           '<span class="cp__status">' +
-            (c.final ? "сканировать не нужно"
-              : t ? "✓ " + fmtTime(t[0]) + (t[1] ? " · " + t[1] + "-й · +" + t[2] : "")
+            (t ? "✓ " + fmtTime(t[0]) + (t[1] ? " · " + t[1] + "-й · +" + t[2] : "")
               : user ? "не взята" : "") + "</span>" +
           "</li>"
         );
@@ -317,7 +314,8 @@
     $("board").innerHTML = board
       .map((r, i) => {
         const has = new Set(r.scans.map((s) => s[0]));
-        const dots = scanPoints().map((c) => '<i class="' + (has.has(c.id) ? "on" : "") + '"></i>').join("");
+        const dots = scanPoints().concat(state.checkpoints.filter((c) => c.final))
+          .map((c) => '<i class="' + (has.has(c.id) ? "on" : "") + (c.final ? " fin" : "") + '"></i>').join("");
         return (
           '<li class="row' + (user && r.nick === user.nick ? " row--me" : "") + (i < 3 ? " row--top" : "") + '">' +
           '<span class="row__place">' + (i + 1) + "</span>" +
@@ -483,12 +481,16 @@
 
     await refresh();
     const me = myRow();
-    const left = scanPoints().length - me.scans.length;
+    const isFinal = (state.checkpoints.find((c) => c.id === cp) || {}).final;
+    const taken = new Set(me.scans.map((x) => x[0]));
+    const left = scanPoints().filter((c) => !taken.has(c.id)).length;
     showSheet("ok", name,
       (res.place ? "Ты <b>" + res.place + "-й</b> на этой точке. " : "") +
       "+" + res.value + " очк. · " + fmtDistance(res.distance) + " от точки" +
         (me.place ? "<br>Теперь ты <b>#" + me.place + "</b> в топе." : "") +
-        (left > 0 ? "" : "<br>Все точки взяты! Гони на финиш в верк."),
+        (isFinal ? "<br>Финиш! Паркуй велик, внутри награждение и туса."
+          : left > 0 ? "<br>Финиш в верке отмечай последним: после него точки не засчитываются."
+          : "<br>Все точки взяты! Гони на финиш в верк."),
       "Точка засчитана · " + fmtTime(res.at), "✓");
   }
 

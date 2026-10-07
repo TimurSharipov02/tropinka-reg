@@ -205,14 +205,20 @@ function scan_(body) {
     if (reg.blocked) fail(null, "не допущен", "Ты пока не допущен к гонке, напиши организаторам");
     if (s.requirePaid && !reg.paid) fail(null, "не оплачено", "Оплата ещё не подтверждена, покажи перевод организаторам");
 
-    var point = readPoints_().filter(function (p) { return p.id === cpId; })[0];
+    var points = readPoints_();
+    var point = points.filter(function (p) { return p.id === cpId; })[0];
     if (!point) fail(null, "нет точки", "Такой точки нет, отсканируй код ещё раз");
-    if (point.final) fail(point, "финиш", "На финише сканировать ничего не нужно");
     if (!body.k || String(body.k) !== point.secret) fail(point, "неверный код", "QR-код не подошёл, отсканируй код прямо на точке");
 
     var okScans = readScans_();
     var already = okScans.filter(function (x) { return x.nick === nick && x.cp === cpId; })[0];
     if (already) return { already: true, cp: cpId, at: already.at };
+
+    // финиш отмечается последним: после него точки не засчитываются
+    var finals = {};
+    points.forEach(function (p) { if (p.final) finals[p.id] = true; });
+    var finished = okScans.some(function (x) { return x.nick === nick && finals[x.cp]; });
+    if (finished) fail(point, "после финиша", "Ты уже отметил финиш, после него точки не засчитываются");
 
     if (!isFinite(lat) || !isFinite(lng)) fail(point, "нет геолокации", "Не получили геолокацию. Разреши доступ и отсканируй ещё раз");
     if (accuracy > MAX_ACCURACY_M) fail(point, "низкая точность", "Геолокация слишком неточная. Включи GPS и попробуй ещё раз");
@@ -252,7 +258,6 @@ function testScan_(s, body) {
       distance == null ? "" : Math.round(distance), accuracy ? Math.round(accuracy) : "", "тест: " + status]);
   };
   if (!point) { log("нет точки"); throw userError_("Такой точки нет в таблице"); }
-  if (point.final) { log("финиш"); throw userError_("Это финиш, на нём сканировать не нужно"); }
   if (!body.k || String(body.k) !== point.secret) { log("неверный код"); throw userError_("QR-код не от этой точки: секрет не совпал"); }
   if (!isFinite(lat) || !isFinite(lng)) { log("нет геолокации"); throw userError_("Не получили геолокацию"); }
   var hasCoords = isFinite(point.lat) && isFinite(point.lng);
@@ -437,7 +442,15 @@ function placePoints_(s, value, place) {
 
 function leaderboard_(s, points, scans) {
   var value = {};
-  points.forEach(function (p) { if (!p.final) value[p.id] = p.value; }); // финиш не в зачёте
+  var finals = {};
+  points.forEach(function (p) {
+    value[p.id] = p.value;
+    if (p.final) finals[p.id] = true;
+  });
+  var finishedAt = {}; // финиш отмечается последним: что после него, не считается
+  scans.forEach(function (x) {
+    if (finals[x.cp] && !(finishedAt[x.nick] <= x.at)) finishedAt[x.nick] = x.at;
+  });
   var placed = {}; // сколько уже взяли каждую точку
   var byNick = {};
   scans
@@ -445,12 +458,14 @@ function leaderboard_(s, points, scans) {
     .sort(function (a, b) { return a.at - b.at; })
     .forEach(function (x) {
       if (!(x.cp in value)) return;
+      if (x.at > finishedAt[x.nick]) return;
       var place = (placed[x.cp] = (placed[x.cp] || 0) + 1);
       var pts = placePoints_(s, value[x.cp], place);
       var r = byNick[x.nick] || (byNick[x.nick] = { nick: x.nick, score: 0, reachedAt: 0, scans: [] });
       r.score += pts;
       r.reachedAt = Math.max(r.reachedAt, x.at);
       r.scans.push([x.cp, x.at, place, pts]);
+      if (finals[x.cp]) r.finished = true;
     });
   return Object.keys(byNick)
     .map(function (k) { return byNick[k]; })
@@ -664,10 +679,7 @@ function refreshQr() {
     return s || (String(t.get(r, "id")).trim() ? Utilities.getUuid().replace(/-/g, "").slice(0, 12) : "");
   });
   var linkCol = colLetter_(t.col.link + 1);
-  // на финише сканировать не нужно: ни ссылки, ни QR
-  var scannable = t.rows.map(function (r) {
-    return String(t.get(r, "id")).trim() && !YES.test(String(t.get(r, "final")).trim());
-  });
+  var scannable = t.rows.map(function (r) { return Boolean(String(t.get(r, "id")).trim()); });
   write("secret", secrets);
   write("link", t.rows.map(function (r, i) {
     return scannable[i] ? site + "?cp=" + encodeURIComponent(String(t.get(r, "id")).trim()) + "&k=" + secrets[i] : "";
