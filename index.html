@@ -9,12 +9,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik+Mono+One&family=Unbounded:wght@500;800&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=202610070954">
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
   <div class="testbar" id="testbar" hidden>
-    Тестовый режим — сканы не идут в зачёт
+    Тестовый режим: сканы не идут в зачёт
     <button type="button" id="test-exit">выйти</button>
   </div>
 
@@ -40,7 +40,7 @@
     <div class="view" id="reg-view">
       <section class="countdown" aria-live="off">
         <p class="countdown__label">До старта аллейката</p>
-        <p class="countdown__value" id="countdown">—</p>
+        <p class="countdown__value" id="countdown">…</p>
         <p class="countdown__note">В <span data-start="time">20:00</span> регистрация закроется, а здесь появятся точки маршрута.</p>
       </section>
 
@@ -52,14 +52,14 @@
             <span class="route__num">01</span>
             <div>
               <h2>Аллейкат <span class="tag tag--acid" data-start="time">20:00</span></h2>
-              <p>По городу развешены QR-коды. Адреса всех точек появятся здесь в <span data-start="time">20:00</span>. Сканируешь код на месте — очки засчитываются зарегистрированным: вход по нику из Telegram. <strong>Шлем обязателен.</strong></p>
+              <p>По городу развешены QR-коды. Адреса всех точек появятся здесь в <span data-start="time">20:00</span>. Сканируешь код на месте и получаешь очки. Засчитываются они зарегистрированным, вход по нику из Telegram. <strong>Шлем обязателен.</strong></p>
             </div>
           </li>
           <li class="route__step">
             <span class="route__num">02</span>
             <div>
               <h2>Голдспринт</h2>
-              <p>Гонка на наших велосипедах и станках, там же — награждение. Велики паркуем на улице.</p>
+              <p>Гонка на наших велосипедах и станках, там же награждение. Велики паркуем на улице.</p>
             </div>
           </li>
           <li class="route__step">
@@ -92,7 +92,7 @@
 
       <form class="form" id="reg-form" novalidate>
         <h2 class="section-title">Регистрация</h2>
-        <p class="form__note"><span class="req">*</span> — обязательные поля · закрывается <span data-start="dm">30.10</span> в <span data-start="time">20:00</span></p>
+        <p class="form__note"><span class="req">*</span> обязательные поля · закрывается <span data-start="dm">30.10</span> в <span data-start="time">20:00</span></p>
 
         <div class="field" data-field="telegram">
           <label class="field__label" for="telegram">Ник в Telegram <span class="req">*</span></label>
@@ -115,13 +115,13 @@
               <span>Ж</span>
             </label>
           </div>
-          <p class="field__hint" id="gender-hint" hidden>Для девушек участие бесплатное — поле оплаты можно заполнить «бесплатно».</p>
+          <p class="field__hint" id="gender-hint" hidden>Для девушек участие бесплатное, в поле оплаты можно написать «бесплатно».</p>
           <p class="field__error" role="alert"></p>
         </fieldset>
 
         <div class="field" data-field="payment">
           <label class="field__label" for="payment">Источник оплаты <span class="req">*</span></label>
-          <p class="field__hint field__hint--pay">Перевод по СБП: <button type="button" class="copy" data-copy="+79966061200">+7 996 606-12-00</button> Сбербанк, Тимур.<br>Ниже — имя и банк, с которых переводишь, чтобы мы нашли платёж.</p>
+          <p class="field__hint field__hint--pay">Перевод по СБП: <button type="button" class="copy" data-copy="+79966061200">+7 996 606-12-00</button> Сбербанк, Тимур.<br>Ниже укажи имя и банк, с которых переводишь, чтобы мы нашли платёж.</p>
           <div class="field__input">
             <input id="payment" name="payment" type="text" autocomplete="off" placeholder="например: Иван И., Тинькофф" required>
           </div>
@@ -147,11 +147,11 @@
           <ol class="paybox__steps">
             <li>Открой приложение своего банка → перевод <b>по номеру телефона (СБП)</b>.</li>
             <li>Номер: <button type="button" class="copy" data-copy="+79966061200">+7 996 606-12-00</button></li>
-            <li>Банк получателя — <b>Сбербанк</b>, получатель — Тимур.</li>
+            <li>Банк получателя: <b>Сбербанк</b>, получатель Тимур.</li>
             <li>Сумма: <button type="button" class="copy" id="pay-sum-copy" data-copy="300">300 ₽</button></li>
-            <li>В сообщении к переводу — твой ник: <button type="button" class="copy" id="pay-nick" data-copy="@nick">@nick</button></li>
+            <li>В сообщении к переводу укажи свой ник: <button type="button" class="copy" id="pay-nick" data-copy="@nick">@nick</button></li>
           </ol>
-          <p class="paybox__note" id="pay-note">Перевод по СБП без комиссии. Как только увидим его — отметим оплату, и статус здесь сменится.</p>
+          <p class="paybox__note" id="pay-note">Перевод по СБП без комиссии. Как только увидим его, отметим оплату, и статус здесь сменится.</p>
           <button type="button" class="paybox__refresh" id="pay-refresh">Обновить статус</button>
         </div>
 
@@ -170,7 +170,7 @@
       <!-- гость: точки видны, но сканы не засчитываются -->
       <section class="join" id="race-join">
         <h2>Участвуешь в гонке?</h2>
-        <p>Войди ником из регистрации — тогда сканы будут засчитываться и ты попадёшь в топ.</p>
+        <p>Войди ником из регистрации, тогда сканы будут засчитываться и ты попадёшь в топ.</p>
         <form class="join__form" id="login-form" novalidate>
           <div class="field__input field__input--prefixed">
             <span class="field__prefix" aria-hidden="true">@</span>
@@ -181,7 +181,7 @@
         <p class="field__error" id="login-error" role="alert"></p>
       </section>
 
-      <!-- точки и топ — видны всем -->
+      <!-- точки и топ - видны всем -->
       <section id="race-open">
         <div class="me" id="me" hidden></div>
 
@@ -195,7 +195,7 @@
             <summary>Как это работает</summary>
             <ol>
               <li>Доезжаешь до точки и находишь QR-код.</li>
-              <li>Сканируешь его камерой телефона — откроется этот сайт.</li>
+              <li>Сканируешь его камерой телефона, откроется этот сайт.</li>
               <li>Разрешаешь геолокацию: скан засчитывается, только если ты рядом с точкой.</li>
               <li>Очки = ценность точки (×1…×5). При равенстве очков выше тот, кто набрал их раньше.</li>
             </ol>
@@ -222,7 +222,7 @@
     </div>
   </div>
 
-  <!-- переключатель состояний — только для макета -->
+  <!-- переключатель состояний - только для макета -->
   <nav class="demo" aria-label="Состояния макета">
     <span class="demo__label">макет</span>
     <button type="button" data-demo="reg">До старта</button>
@@ -238,8 +238,8 @@
     <p>FGK CloseSeason 26 · 18+</p>
   </footer>
 
-  <script src="config.js"></script>
-  <script src="data.js"></script>
-  <script src="app.js"></script>
+  <script src="config.js?v=202610070954"></script>
+  <script src="data.js?v=202610070954"></script>
+  <script src="app.js?v=202610070954"></script>
 </body>
 </html>

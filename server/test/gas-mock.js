@@ -1,4 +1,4 @@
-// Имитация сервисов Google Apps Script поверх таблиц в памяти — для server.test.js
+// Имитация сервисов Google Apps Script поверх таблиц в памяти - для server.test.js
 const vm = require('vm'), fs = require('fs'), crypto = require('crypto');
 function colIdx(a){return a.toUpperCase().split('').reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);}
 class Sheet {

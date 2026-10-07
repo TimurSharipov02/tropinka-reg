@@ -24,7 +24,7 @@ g.ctx.setup();
 assert.ok(g.sheets['Настройки'] && g.sheets['Точки'], 'setup из GitHub-кода отработал');
 assert.equal(g.ctx.LOADER_INFO.source, 'github'); assert.equal(github.calls, 1);
 
-// следующий запуск — из кеша, без GitHub
+// следующий запуск - из кеша, без GitHub
 reset();
 assert.equal(json(g.ctx.doGet({ parameter: { action: 'state' } })).ok, true);
 assert.equal(g.ctx.LOADER_INFO.source, 'cache'); assert.equal(github.calls, 1);
@@ -37,12 +37,12 @@ assert.equal(admin('reload').done, true);
 reset(); g.ctx.doGet({ parameter: { action: 'state' } });
 assert.equal(g.ctx.LOADER_INFO.source, 'github', 'после reload код берётся заново'); assert.equal(github.calls, 2);
 
-// GitHub недоступен и кеш пуст — работает сохранённая копия
+// GitHub недоступен и кеш пуст - работает сохранённая копия
 g.cache.clear(); github.down = true; reset();
 assert.equal(json(g.ctx.doGet({ parameter: { action: 'state' } })).ok, true);
 assert.equal(g.ctx.LOADER_INFO.source, 'backup');
 
-// на GitHub код с синтаксической ошибкой — на сервер он не попадает
+// на GitHub код с синтаксической ошибкой - на сервер он не попадает
 github.down = false; github.body = 'function broken( {'; g.cache.clear(); reset();
 assert.equal(json(g.ctx.doGet({ parameter: { action: 'state' } })).ok, true);
 assert.equal(g.ctx.LOADER_INFO.source, 'backup');

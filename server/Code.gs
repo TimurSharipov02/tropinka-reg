@@ -1,17 +1,17 @@
 /**
- * FGK CloseSeason 26 — сервер аллейката на Google Apps Script.
+ * FGK CloseSeason 26 - сервер аллейката на Google Apps Script.
  *
  * Данные лежат в этой же Google Таблице:
- *   «Настройки»   — время старта, радиус засчёта, адрес сайта
- *   «Регистрации» — ники участников, сумма и галочка «Оплачено»
- *                   (колонка «Допуск»: «нет» — не пускать в гонку)
- *   «Точки»       — точки маршрута, их ценность, секреты и ссылки для QR
- *   «Сканы»       — журнал всех попыток скана со статусом
+ *   «Настройки»   - время старта, радиус засчёта, адрес сайта
+ *   «Регистрации» - ники участников, сумма и галочка «Оплачено»
+ *                   (колонка «Допуск»: «нет» - не пускать в гонку)
+ *   «Точки»       - точки маршрута, их ценность, секреты и ссылки для QR
+ *   «Сканы»       - журнал всех попыток скана со статусом
  *
- * Если таблица — это таблица ответов Google Формы, ответы формы автоматически
+ * Если таблица - это таблица ответов Google Формы, ответы формы автоматически
  * переносятся в «Регистрации» (лист формы остаётся как есть).
  *
- * Установка — см. server/README.md.
+ * Установка - см. server/README.md.
  */
 
 var SHEETS = {
@@ -38,13 +38,13 @@ var DEFAULT_SETTINGS = [
   ["Ключ администратора", ""], // setup заполнит сам; с ним можно обслуживать таблицу удалённо
 ];
 
-// колонки листа «Точки» ищем по названию — их можно переставлять
+// колонки листа «Точки» ищем по названию - их можно переставлять
 var P = {
   id: "ID", name: "Название", coords: "Координаты", value: "Ценность", final: "Финиш",
   secret: "Секрет", link: "Ссылка для QR", qr: "QR", description: "Описание",
   photo: "Фото", photoSite: "Фото для сайта",
 };
-var PHOTO_FOLDER = "FGK CloseSeason 26 — фото точек";
+var PHOTO_FOLDER = "FGK CloseSeason 26, фото точек";
 
 var COL_PAID = 6; // колонка «Оплачено» на листе «Регистрации»
 var YES = /^(да|yes|1|true|x|✓)$/i;
@@ -119,7 +119,7 @@ function getState_(testKey) {
 
 function register_(body) {
   var s = settings_();
-  if (Date.now() >= s.start) throw userError_("Регистрация закрыта — аллейкат уже идёт");
+  if (Date.now() >= s.start) throw userError_("Регистрация закрыта, аллейкат уже идёт");
 
   var nick = cleanNick_(body.telegram);
   var gender = String(body.gender || "").trim();
@@ -144,7 +144,7 @@ function addRegistration_(s, time, nick, gender, payment) {
   return amount;
 }
 
-// статус регистрации и оплаты — чтобы участник видел, подтверждён ли перевод
+// статус регистрации и оплаты - чтобы участник видел, подтверждён ли перевод
 function me_(raw) {
   var nick = cleanNick_(raw);
   var reg = nick && findRegistration_(nick);
@@ -168,7 +168,7 @@ function login_(body) {
   if (!nick) throw userError_("Введи ник в Telegram");
   var reg = findRegistration_(nick);
   if (!reg) throw userError_("Не нашли @" + nick + " среди зарегистрированных");
-  if (reg.blocked) throw userError_("@" + nick + " пока не допущен к гонке — напиши организаторам");
+  if (reg.blocked) throw userError_("@" + nick + " пока не допущен к гонке, напиши организаторам");
   return status_(reg, {});
 }
 
@@ -200,18 +200,18 @@ function scan_(body) {
 
     var reg = nick && findRegistration_(nick);
     if (!reg) fail(null, "нет регистрации", "Войди ником из регистрации");
-    if (reg.blocked) fail(null, "не допущен", "Ты пока не допущен к гонке — напиши организаторам");
-    if (s.requirePaid && !reg.paid) fail(null, "не оплачено", "Оплата ещё не подтверждена — покажи перевод организаторам");
+    if (reg.blocked) fail(null, "не допущен", "Ты пока не допущен к гонке, напиши организаторам");
+    if (s.requirePaid && !reg.paid) fail(null, "не оплачено", "Оплата ещё не подтверждена, покажи перевод организаторам");
 
     var point = readPoints_().filter(function (p) { return p.id === cpId; })[0];
-    if (!point) fail(null, "нет точки", "Такой точки нет — отсканируй код ещё раз");
-    if (!body.k || String(body.k) !== point.secret) fail(point, "неверный код", "QR-код не подошёл — отсканируй код прямо на точке");
+    if (!point) fail(null, "нет точки", "Такой точки нет, отсканируй код ещё раз");
+    if (!body.k || String(body.k) !== point.secret) fail(point, "неверный код", "QR-код не подошёл, отсканируй код прямо на точке");
 
     var already = readScans_().filter(function (x) { return x.nick === nick && x.cp === cpId; })[0];
     if (already) return { already: true, cp: cpId, at: already.at };
 
-    if (!isFinite(lat) || !isFinite(lng)) fail(point, "нет геолокации", "Не получили геолокацию — разреши доступ и отсканируй ещё раз");
-    if (accuracy > MAX_ACCURACY_M) fail(point, "низкая точность", "Геолокация слишком неточная — включи GPS и попробуй ещё раз");
+    if (!isFinite(lat) || !isFinite(lng)) fail(point, "нет геолокации", "Не получили геолокацию. Разреши доступ и отсканируй ещё раз");
+    if (accuracy > MAX_ACCURACY_M) fail(point, "низкая точность", "Геолокация слишком неточная. Включи GPS и попробуй ещё раз");
 
     var distance = distanceM_({ lat: lat, lng: lng }, point);
     var allowed = s.radius + Math.min(accuracy, ACCURACY_BONUS_M);
@@ -233,7 +233,7 @@ function isAdmin_(s, key) {
 }
 
 // Тестовый скан для разработки и расклейки: проверяет, что QR от этой точки
-// и как далеко телефон от её координат. В «Сканы» — с пометкой «тест», в очки не идёт.
+// и как далеко телефон от её координат. В «Сканы» - с пометкой «тест», в очки не идёт.
 function testScan_(s, body) {
   if (!isAdmin_(s, body.test)) throw userError_("Тестовый режим: неверный ключ");
   var cpId = String(body.cp || "").trim();
@@ -246,7 +246,7 @@ function testScan_(s, body) {
       distance == null ? "" : Math.round(distance), accuracy ? Math.round(accuracy) : "", "тест: " + status]);
   };
   if (!point) { log("нет точки"); throw userError_("Такой точки нет в таблице"); }
-  if (!body.k || String(body.k) !== point.secret) { log("неверный код"); throw userError_("QR-код не от этой точки — секрет не совпал"); }
+  if (!body.k || String(body.k) !== point.secret) { log("неверный код"); throw userError_("QR-код не от этой точки: секрет не совпал"); }
   if (!isFinite(lat) || !isFinite(lng)) { log("нет геолокации"); throw userError_("Не получили геолокацию"); }
   var hasCoords = isFinite(point.lat) && isFinite(point.lng);
   var distance = hasCoords ? distanceM_({ lat: lat, lng: lng }, point) : null;
@@ -372,7 +372,7 @@ function pointsTable_() {
     get: function (r, k) { return col[k] >= 0 ? r[col[k]] : ""; },
   };
 }
-// «55.752000, 37.617500» — как копируют из Яндекс и Google Карт (подойдёт и «55,752; 37,6175»)
+// «55.752000, 37.617500» - как копируют из Яндекс и Google Карт (подойдёт и «55,752; 37,6175»)
 function parseCoords_(v) {
   var m = String(v || "").match(/(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)/);
   if (!m) return { lat: NaN, lng: NaN };
@@ -387,7 +387,7 @@ function publicPoint_(p) {
 }
 
 // Ссылку «поделиться» из Google Диска превращаем в картинку, которую можно показать на сайте
-// (файл должен быть доступен «всем, у кого есть ссылка»). Прочие ссылки — как есть.
+// (файл должен быть доступен «всем, у кого есть ссылка»). Прочие ссылки - как есть.
 function photoUrl_(v) {
   var url = String(v || "").trim();
   if (!/^https?:\/\//.test(url)) return "";
@@ -540,8 +540,8 @@ function formSheet_() {
 }
 
 /**
- * Переносит новые ответы формы в «Регистрации» (каждый — один раз).
- * Ник, который не похож на ник в Telegram, переносится как есть —
+ * Переносит новые ответы формы в «Регистрации» (каждый - один раз).
+ * Ник, который не похож на ник в Telegram, переносится как есть -
  * поправьте его вручную в «Регистрациях», иначе человек не сможет войти.
  */
 function importFormResponses() {
@@ -549,7 +549,7 @@ function importFormResponses() {
   if (!form) return;
   withLock_(function () {
     var props = PropertiesService.getScriptProperties();
-    var done = Number(props.getProperty("formRowsImported")) || 1; // строка 1 — заголовки
+    var done = Number(props.getProperty("formRowsImported")) || 1; // строка 1 - заголовки
     var last = form.getLastRow();
     if (last <= done) return;
     var s = settings_();
@@ -607,7 +607,7 @@ function migratePoints_(sh) {
 /**
  * Дозаполняет секреты, ссылки и QR у всех точек и выкладывает фото,
  * вставленные прямо в ячейку «Фото», чтобы сайт мог их показать.
- * Пишем только служебные колонки — то, что заполнил организатор, не трогаем.
+ * Пишем только служебные колонки - то, что заполнил организатор, не трогаем.
  */
 function refreshQr() {
   var site = settings_().site.replace(/\/?$/, "/");
@@ -655,7 +655,7 @@ function refreshQr() {
   warnFloatingPhotos_(t);
 }
 
-// картинки «поверх ячеек» сервер не видит — подскажем, где их поместить в ячейку
+// картинки «поверх ячеек» сервер не видит - подскажем, где их поместить в ячейку
 function warnFloatingPhotos_(t) {
   if (typeof t.sh.getImages !== "function") return;
   var rows = t.sh.getImages()
@@ -669,7 +669,7 @@ function warnFloatingPhotos_(t) {
       "Нажмите на фото → ⋮ → «Поместить изображение в выбранную ячейку», " +
       "потом снова «Аллейкат → Обновить ссылки, QR и фото точек»."
     );
-  } catch (e) { /* запуск не из таблицы — окно показать некуда */ }
+  } catch (e) { /* запуск не из таблицы - окно показать некуда */ }
 }
 
 function colLetter_(n) {
@@ -678,7 +678,7 @@ function colLetter_(n) {
   return s;
 }
 // Фото, вставленное в ячейку («Вставка → Изображение → Изображение в ячейке»),
-// сохраняем на Диск с доступом по ссылке; в ответ — ссылка для сайта.
+// сохраняем на Диск с доступом по ссылке; в ответ - ссылка для сайта.
 function syncPhoto_(t, r) {
   var cell = t.get(r, "photo");
   var old = String(t.get(r, "photoSite") || "").trim();

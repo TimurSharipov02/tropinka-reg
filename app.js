@@ -1,5 +1,5 @@
 // Сайт аллейката. Данные берутся с сервера (Google Apps Script, см. server/),
-// а если в config.js не задан apiUrl или в адресе есть ?demo=… — из демо-данных data.js.
+// а если в config.js не задан apiUrl или в адресе есть ?demo=… - из демо-данных data.js.
 (function () {
   const CFG = window.CONFIG || {};
   const MIN = 60 * 1000;
@@ -8,7 +8,7 @@
   const DEMO = !CFG.apiUrl || params.has("demo");
 
   // Тестовый режим (разработка и расклейка QR): включается ссылкой ?test=<ключ администратора>,
-  // телефон его запоминает; ?test=off — выключить. Тестовые сканы не идут в зачёт.
+  // телефон его запоминает; ?test=off - выключить. Тестовые сканы не идут в зачёт.
   const testKey = (function () {
     const fromUrl = params.get("test");
     try {
@@ -30,7 +30,7 @@
   let clockOffset = 0; // серверное время − локальное
   let user = null; // { nick }
   let pendingScan = null; // скан, сделанный до входа
-  let payment = null; // { amount, paid } — статус оплаты участника
+  let payment = null; // { amount, paid } - статус оплаты участника
 
   const now = () => Date.now() + clockOffset;
   const raceOn = () => state && (now() >= state.start || state.test);
@@ -46,7 +46,7 @@
 
   /* ================= сервер ================= */
 
-  // Google иногда отвечает на первый запрос страницей-заглушкой вместо JSON —
+  // Google иногда отвечает на первый запрос страницей-заглушкой вместо JSON -
   // тогда тихо повторяем (повтор безопасен: сервер не засчитывает скан и регистрацию дважды)
   async function fetchJson(url, options, tries = 3) {
     for (let i = 1; ; i++) {
@@ -64,7 +64,7 @@
     state: () =>
       fetchJson(CFG.apiUrl + "?action=state" + (testKey ? "&test=" + encodeURIComponent(testKey) : ""), { cache: "no-store" }),
     me: (nick) => fetchJson(CFG.apiUrl + "?action=me&nick=" + encodeURIComponent(nick), { cache: "no-store" }),
-    // text/plain — чтобы браузер не делал preflight-запрос, который Apps Script не поддерживает
+    // text/plain - чтобы браузер не делал preflight-запрос, который Apps Script не поддерживает
     call: (action, data) =>
       fetchJson(CFG.apiUrl, {
         method: "POST",
@@ -169,7 +169,7 @@
     return 2 * 6371000 * Math.asin(Math.sqrt(h));
   }
 
-  // в списке — уменьшенное фото с Google Диска (полное открывается по нажатию)
+  // в списке - уменьшенное фото с Google Диска (полное открывается по нажатию)
   const preview = (url) => url.replace(/(drive\.google\.com\/thumbnail\?.*\bsz=)w\d+/, "$1w640");
 
   // время старта берём из таблицы («Настройки → Старт»), а не из текста страницы
@@ -223,7 +223,7 @@
     if (!state) return;
     fillStartTexts();
     const on = raceOn();
-    if (on && !state.open) return refresh(); // старт наступил — забираем точки
+    if (on && !state.open) return refresh(); // старт наступил - забираем точки
     $("reg-view").hidden = on;
     $("race-view").hidden = !on;
     if (on) renderRace();
@@ -258,7 +258,7 @@
       '<span class="me__nick">@' + esc(me.nick) + "</span>" +
       '<span class="me__stat"><b>' + me.score + "</b> очк.</span>" +
       '<span class="me__stat"><b>' + me.scans.length + "/" + state.checkpoints.length + "</b> точек</span>" +
-      '<span class="me__stat me__place"><b>' + (me.place ? "#" + me.place : "—") + "</b> в топе</span>" +
+      '<span class="me__stat me__place"><b>' + (me.place ? "#" + me.place : "-") + "</b> в топе</span>" +
       (payment && !payment.paid ? '<span class="me__warn">оплата пока не подтверждена</span>' : "");
   }
 
@@ -351,7 +351,7 @@
   );
 
   /* ================= скан QR ================= */
-  // QR-код на точке — ссылка вида  https://сайт/?cp=<id>&k=<секрет>.
+  // QR-код на точке - ссылка вида  https://сайт/?cp=<id>&k=<секрет>.
   // Камера телефона открывает сайт, берём геолокацию, сервер проверяет секрет и расстояние.
 
   function showSheet(kind, title, text, step, icon, action) {
@@ -389,9 +389,9 @@
     const gps = "Точность GPS ±" + res.accuracy + " м.";
     let text;
     if (!res.hasCoords) text = "QR от этой точки ✓<br>У точки в таблице нет координат.";
-    else if (res.inRadius) text = "QR от этой точки ✓<br>До координат из таблицы <b>" + fmtDistance(res.distance) + "</b> — скан засчитается.";
+    else if (res.inRadius) text = "QR от этой точки ✓<br>До координат из таблицы <b>" + fmtDistance(res.distance) + "</b>, скан засчитается.";
     else text = "QR от этой точки ✓, но до её координат в таблице <b>" + fmtDistance(res.distance) +
-      "</b> — гонщику скан <b>не засчитается</b> (радиус " + res.radius + " м).";
+      "</b>, гонщику скан <b>не засчитается</b> (радиус " + res.radius + " м).";
     showSheet(res.inRadius ? "ok" : "far", res.name || name, text + "<br><small>" + gps + "</small>",
       "Тест · " + cp, res.inRadius ? "✓" : "!", "Готово");
     const extra = $("scan-extra");
@@ -418,7 +418,7 @@
 
   function getPosition() {
     return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) return reject(new Error("Браузер не даёт геолокацию — открой ссылку в Chrome или Safari."));
+      if (!navigator.geolocation) return reject(new Error("Браузер не даёт геолокацию. Открой ссылку в Chrome или Safari."));
       navigator.geolocation.getCurrentPosition(
         (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
         () => reject(new Error("Без геолокации точку не засчитать. Разреши доступ в настройках браузера и отсканируй код ещё раз.")),
@@ -433,7 +433,7 @@
     const name = cpName(cp);
     if (!user) {
       pendingScan = [cp, k, fakePosition];
-      return showSheet("far", name, "Войди ником из регистрации — и точка засчитается сразу после входа.", "Нужен вход", "@", "Войти");
+      return showSheet("far", name, "Войди ником из регистрации, и точка засчитается сразу после входа.", "Нужен вход", "@", "Войти");
     }
     pendingScan = null;
 
@@ -455,7 +455,7 @@
 
     if (res.far) {
       return showSheet("far", name,
-        "Ты в <b>" + fmtDistance(res.distance) + "</b> от точки. Скан засчитывается в радиусе " + res.radius + " м — подъедь ближе и отсканируй ещё раз.",
+        "Ты в <b>" + fmtDistance(res.distance) + "</b> от точки. Скан засчитывается в радиусе " + res.radius + " м. Подъедь ближе и отсканируй ещё раз.",
         "Слишком далеко", "✗");
     }
     if (!res.ok) return showSheet("far", name, esc(res.error), "Не засчитано", "✗");
@@ -467,7 +467,7 @@
     showSheet("ok", name,
       "+" + res.value + " очк. · " + fmtDistance(res.distance) + " от точки" +
         (me.place ? "<br>Теперь ты <b>#" + me.place + "</b> в топе." : "") +
-        (final ? "<br>Финиш! Паркуй велик — внутри награждение и туса." : ""),
+        (final ? "<br>Финиш! Паркуй велик, внутри награждение и туса." : ""),
       "Точка засчитана · " + fmtTime(res.at), "✓");
   }
 
@@ -530,7 +530,7 @@
       }
       signIn(res.nick);
       showDone(res, res.already
-        ? "@" + res.nick + " уже был в списке — всё в силе."
+        ? "@" + res.nick + " уже был в списке, всё в силе."
         : startPhrase() + " здесь появятся точки маршрута. Не забудь шлем.");
       done.focus();
     } catch (err) {
@@ -570,10 +570,10 @@
     $("pay-nick").textContent = "@" + status.nick;
     $("pay-nick").dataset.copy = "@" + status.nick;
     $("pay-note").textContent = free
-      ? "Для девушек участие бесплатное — платить ничего не нужно."
+      ? "Для девушек участие бесплатное, платить ничего не нужно."
       : status.paid
         ? "Оплата подтверждена. Увидимся " + startPhrase() + "!"
-        : "Перевод по СБП без комиссии. Как только увидим его — отметим оплату, и статус здесь сменится.";
+        : "Перевод по СБП без комиссии. Как только увидим его, отметим оплату, и статус здесь сменится.";
   }
 
   async function loadMyStatus() {
@@ -584,7 +584,7 @@
       payment = { amount: res.amount, paid: res.paid };
       if (!raceOn()) showDone(res, "@" + res.nick + ", ты в списке. " + startPhrase() + " здесь появятся точки маршрута.");
       else render();
-    } catch (err) { /* статус оплаты не критичен — покажем в следующий раз */ }
+    } catch (err) { /* статус оплаты не критичен - покажем в следующий раз */ }
   }
 
   $("pay-refresh").addEventListener("click", async (e) => {
@@ -657,6 +657,6 @@
     if (params.has("cp")) scan(params.get("cp"), params.get("k"));
   })();
 
-  // во время гонки обновляем топ, до старта — только отсчёт
+  // во время гонки обновляем топ, до старта - только отсчёт
   setInterval(() => (raceOn() ? refresh() : state && tickCountdown()), 20 * 1000);
 })();

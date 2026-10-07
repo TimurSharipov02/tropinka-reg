@@ -33,7 +33,7 @@ assert.equal(S('Регистрации').data.length,5);
 assert.equal(post({action:'login',nick:'@FIXIE_MASHA'}).nick,'fixie_masha');
 assert.equal(post({action:'login',nick:'nobody'}).ok,false);
 assert.match(post({action:'login',nick:'blocked_guy'}).error,/не допущен/);
-const pts=S('Точки').data.slice(1); // старый вид строки [.., .., .., lat, lng, .., .., secret] — чтобы не переписывать проверки ниже
+const pts=S('Точки').data.slice(1); // старый вид строки [.., .., .., lat, lng, .., .., secret] - чтобы не переписывать проверки ниже
 const old=r=>{const [la,ln]=r[2].split(',').map(Number);return [r[0],r[1],'',la,ln,r[3],r[4],r[5]];};
 const [c1,c2,fin]=pts.map(old); 
 let r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:10}); assert.equal(r.ok,false); assert.match(r.error,/старта/);
@@ -95,7 +95,7 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   pts.data[3][9]=''; g4.ctx.refreshQr(); assert.equal(pts.data[3][10],''); assert.equal(g4.drive.trashed.length,2);
   g4.cache.clear(); assert.equal(JSON.parse(g4.ctx.doGet({parameter:{action:'state'}}).s).checkpoints[1].photo,'https://example.com/p.jpg');
 
-  // фото поверх ячеек — подсказка, в каких точках
+  // фото поверх ячеек - подсказка, в каких точках
   pts.getImages=()=>[{getAnchorCell:()=>({getRow:()=>3})}];
   g4.ctx.refreshQr(); assert.match(g4.alerts[0],/точки: c2/);
 }
@@ -158,7 +158,7 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   assert.match(post({action:'admin',op:'coords',key,id:'nope',lat:1,lng:2}).error,/нет в таблице/);
 }
 
-// без setup — понятная ошибка
+// без setup - понятная ошибка
 { const {load:l3}=require('./gas-mock'); const g3=l3();
   assert.match(JSON.parse(g3.ctx.doGet({parameter:{action:'state'}}).s).error,/setup/); }
 
