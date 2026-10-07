@@ -293,6 +293,15 @@
       (payment && !payment.paid ? '<span class="me__warn">оплата пока не подтверждена</span>' : "");
   }
 
+  // кто и когда уже отметил точку — по порядку прибытия
+  function arrivals(cpId) {
+    const list = [];
+    ((state && state.leaderboard) || []).forEach((r) =>
+      r.scans.forEach((x) => { if (x[0] === cpId) list.push({ nick: r.nick, at: x[1], place: x[2] }); })
+    );
+    return list.sort((a, b) => a.at - b.at).map((x, i) => Object.assign(x, { place: x.place || i + 1 }));
+  }
+
   function renderCheckpoints() {
     const taken = {}; // id точки → [время, место, очки]
     if (user) myRow().scans.forEach((x) => (taken[x[0]] = x.slice(1)));
@@ -301,29 +310,82 @@
     $("cps").innerHTML = list
       .map((c) => {
         const t = taken[c.id];
-        const map = "https://yandex.ru/maps/?pt=" + c.lng + "," + c.lat + "&z=17&l=map";
+        const n = arrivals(c.id).length;
         return (
-          '<li class="cp' + (c.final ? " cp--final" : "") + (t ? " cp--done" : "") + '">' +
-          (c.photo
-            ? '<a class="cp__photo" href="' + esc(c.photo) + '" target="_blank" rel="noopener">' +
-              '<img src="' + esc(preview(c.photo)) + '" alt="' + esc(c.name) + '" loading="lazy" onerror="this.parentNode.remove()"></a>'
-            : "") +
+          '<li class="cp' + (c.final ? " cp--final" : "") + (t ? " cp--done" : "") + '" data-cp="' + esc(c.id) +
+            '" tabindex="0" role="button" aria-label="' + esc(c.name) + ': подробнее">' +
           '<span class="cp__value" title="ценность точки">×' + c.value + "</span>" +
           '<div class="cp__body">' +
           (c.final ? '<span class="cp__flag">финиш</span>' : "") +
           "<h3>" + esc(c.name) + "</h3>" +
-          (c.final ? '<p class="cp__desc">Отмечается последним: после финиша точки не засчитываются.</p>' : "") +
-          (c.description ? '<p class="cp__desc">' + esc(c.description) + "</p>" : "") +
-          '<a class="cp__map" href="' + map + '" target="_blank" rel="noopener">на карте ↗</a>' +
+          '<p class="cp__meta">' + (n ? "приехали: " + n : "пока никого") +
+            (t ? ' · <b class="cp__mine">ты ' + (t[1] ? t[1] + "-й" : "✓") + "</b>" : "") + "</p>" +
           "</div>" +
-          '<span class="cp__status">' +
-            (t ? "✓ " + fmtTime(t[0]) + (t[1] ? " · " + t[1] + "-й" : "")
-              : user ? "не взята" : "") + "</span>" +
+          (c.photo
+            ? '<img class="cp__thumb" src="' + esc(preview(c.photo)) + '" alt="" loading="lazy" onerror="this.remove()">'
+            : '<span class="cp__chev" aria-hidden="true">›</span>') +
           "</li>"
         );
       })
       .join("");
+    if (openCp) renderCpSheet(openCp);
   }
+
+  /* ---------- страница точки ---------- */
+
+  let openCp = null;
+
+  function renderCpSheet(id) {
+    const c = state.checkpoints.find((x) => x.id === id);
+    if (!c) return closeCpSheet();
+    const map = "https://yandex.ru/maps/?pt=" + c.lng + "," + c.lat + "&z=17&l=map";
+    const who = arrivals(id);
+    $("cp-sheet-body").innerHTML =
+      (c.photo
+        ? '<a class="cpd__photo" href="' + esc(c.photo) + '" target="_blank" rel="noopener" title="Открыть фото целиком">' +
+          '<img src="' + esc(preview(c.photo)) + '" alt="Где висит QR: ' + esc(c.name) + '" onerror="this.parentNode.remove()"></a>'
+        : "") +
+      '<div class="cpd__head">' +
+        '<span class="cp__value">×' + c.value + "</span>" +
+        "<div>" + (c.final ? '<span class="cp__flag">финиш</span>' : "") + "<h2>" + esc(c.name) + "</h2></div>" +
+      "</div>" +
+      (c.final ? '<p class="cpd__desc">Отмечается последним: после финиша точки не засчитываются.</p>' : "") +
+      (c.description ? '<p class="cpd__desc">' + esc(c.description) + "</p>" : "") +
+      '<a class="cpd__map" href="' + map + '" target="_blank" rel="noopener">Открыть на карте ↗</a>' +
+      '<h3 class="cpd__sub">Уже приехали' + (who.length ? " · " + who.length : "") + "</h3>" +
+      (who.length
+        ? '<ol class="arrivals">' + who.map((x) =>
+            '<li class="' + (user && x.nick === user.nick ? "is-me" : "") + '">' +
+            '<span class="arrivals__place">' + x.place + "</span>" +
+            '<span class="arrivals__nick">@' + esc(x.nick) + "</span>" +
+            '<span class="arrivals__time">' + fmtTime(x.at) + "</span></li>").join("") + "</ol>"
+        : '<p class="cpd__empty">Пока никого. Приедешь первым, получишь больше всего очков.</p>');
+  }
+
+  function openCpSheet(id) {
+    openCp = id;
+    renderCpSheet(id);
+    $("cp-sheet").hidden = false;
+    $("cp-sheet").querySelector(".sheet__card").focus();
+  }
+
+  function closeCpSheet() {
+    openCp = null;
+    $("cp-sheet").hidden = true;
+  }
+
+  $("cps").addEventListener("click", (e) => {
+    const li = e.target.closest("[data-cp]");
+    if (li) openCpSheet(li.dataset.cp);
+  });
+  $("cps").addEventListener("keydown", (e) => {
+    const li = e.target.closest("[data-cp]");
+    if (li && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCpSheet(li.dataset.cp); }
+  });
+  $("cp-sheet-close").addEventListener("click", closeCpSheet);
+  $("cp-sheet").addEventListener("click", (e) => { if (e.target === $("cp-sheet")) closeCpSheet(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && openCp) closeCpSheet(); });
+
 
   function renderBoard() {
     const board = state.leaderboard;
