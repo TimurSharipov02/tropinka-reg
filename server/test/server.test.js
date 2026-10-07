@@ -39,10 +39,14 @@ const [c1,c2,fin]=pts.map(old);
 let r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:10}); assert.equal(r.ok,false); assert.match(r.error,/старта/);
 setStart(Date.now()-60e3);
 assert.equal(post({action:'register',telegram:'late',gender:'М',payment:'x'}).ok,false);
-st=get(); assert.equal(st.open,true); assert.equal(st.checkpoints.length,3); assert.ok(!('secret' in st.checkpoints[0])); assert.deepEqual(st.leaderboard,[]);
+st=get(); assert.equal(st.open,true); assert.equal(st.checkpoints.length,3); assert.ok(!('secret' in st.checkpoints[0]));
+assert.equal(st.leaderboard,undefined,'во время гонки топ скрыт'); assert.equal(st.results,false);
+const ADMIN=S('Настройки').data.find(r=>r[0]==='Ключ администратора')[1];
+const getLB=()=>{cache.clear(); return JSON.parse(ctx.doGet({parameter:{action:'state',test:ADMIN}}).s).leaderboard;};
+assert.deepEqual(getLB(),[]);
 r=post({action:'scan',nick:'bob_1',cp:'c1',k:'wrong',lat:c1[3],lng:c1[4]}); assert.match(r.error,/не подошёл/);
 r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3]+0.01,lng:c1[4],accuracy:10}); assert.equal(r.far,true); 
-r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3]+0.001,lng:c1[4],accuracy:10}); assert.equal(r.ok,true); assert.equal(r.value,10,'первый на точке ×1'); assert.equal(r.place,1); 
+r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3]+0.001,lng:c1[4],accuracy:10}); assert.equal(r.ok,true); assert.equal(r.place,undefined,'место не отдаём'); 
 r=post({action:'scan',nick:'bob_1',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4]}); assert.equal(r.already,true);
 r=post({action:'scan',nick:'blocked_guy',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4]}); assert.match(r.error,/не допущен/);
 r=post({action:'scan',nick:'ghost',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4]}); assert.match(r.error,/Войди/);
@@ -51,7 +55,7 @@ r=post({action:'scan',nick:'fixie_masha',cp:'c2',k:c2[7],lat:c2[3],lng:c2[4],acc
 r=post({action:'scan',nick:'bob_1',cp:'c2',k:c2[7],lat:c2[3],lng:c2[4],accuracy:5}); assert.equal(r.ok,true);
 st=get();
 // c2 ценность 2: masha первая (20), bob второй (18); c1: bob первый (10)
-assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['bob_1',28],['fixie_masha',20]]);
+assert.deepEqual(getLB().map(x=>[x.nick,x.score]),[['bob_1',28],['fixie_masha',20]]);
 // «Гонка только после оплаты»
 S('Настройки').data.find(r=>r[0]==='Гонка только после оплаты')[1]='да';
 r=post({action:'scan',nick:'early_bird',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:5}); assert.match(r.error,/Оплата/);
@@ -59,8 +63,8 @@ S('Настройки').data.find(r=>r[0]==='Гонка только после 
 // повторный setup не затирает настройки и не дублирует строки
 const before=JSON.stringify(S('Настройки').data); ctx.setup(); assert.equal(JSON.stringify(S('Настройки').data),before);
 r=post({action:'scan',nick:'fixie_masha',cp:'c1',k:c1[7],lat:c1[3],lng:c1[4],accuracy:5}); 
-st=get(); assert.deepEqual(st.leaderboard.map(x=>[x.nick,x.score]),[['fixie_masha',29],['bob_1',28]],'masha вторая на c1: +9');
-assert.deepEqual(st.leaderboard[0].scans.map(x=>x.slice(2)),[[1,20],[2,9]],'в топе видно место и очки на каждой точке');
+const L=getLB(); assert.deepEqual(L.map(x=>[x.nick,x.score]),[['fixie_masha',29],['bob_1',28]],'masha вторая на c1: +9');
+assert.deepEqual(L[0].scans.map(x=>x.slice(2)),[[1,20],[2,9]],'в топе видно место и очки на каждой точке');
 // правило очков: минимум, множитель, равенство по времени
 { const sx={firstPoints:3,minPoints:1}; const P=[{id:'a',value:1},{id:'b',value:2},{id:'f',value:5,final:true}];
   const sc=[['u1','a',1],['u2','a',2],['u3','a',3],['u4','a',4],['u4','b',5],['u3','b',6],['u1','f',7]].map(([nick,cp,at])=>({nick,cp,at}));
@@ -189,13 +193,19 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   const row=id=>S9('Точки').data.find(r=>r[0]===id); const fin=row('fin'), c1=row('c1');
   assert.match(fin[6],/\?cp=fin&k=/,'у финиша есть QR');
   const at=r=>r[2].split(',').map(Number);
-  let r=post({action:'scan',nick:'rider1',cp:'fin',k:fin[5],lat:at(fin)[0],lng:at(fin)[1]}); assert.equal(r.ok,true); assert.equal(r.value,50,'финиш ×5, первый');
+  let r=post({action:'scan',nick:'rider1',cp:'fin',k:fin[5],lat:at(fin)[0],lng:at(fin)[1]}); assert.equal(r.ok,true);
   r=post({action:'scan',nick:'rider1',cp:'c1',k:c1[5],lat:at(c1)[0],lng:at(c1)[1]}); assert.match(r.error,/после него/);
-  g9.cache.clear(); const lb=JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s).leaderboard;
+  const K9=S9('Настройки').data.find(r=>r[0]==='Ключ администратора')[1];
+  g9.cache.clear(); const lb=JSON.parse(g9.ctx.doGet({parameter:{action:'state',test:K9}}).s).leaderboard;
   assert.deepEqual(lb.map(x=>[x.nick,x.score,x.finished]),[['rider1',50,true]]);
   // строка после финиша, попавшая в «Сканы» вручную, не считается
   const t=Date.now()+5000; S9('Сканы').data.push([new Date(t),'rider1','c2',20,0,5,'ok']); g9.cache.clear();
-  assert.equal(JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s).leaderboard[0].score,50);
+  assert.equal(JSON.parse(g9.ctx.doGet({parameter:{action:'state',test:K9}}).s).leaderboard[0].score,50);
+  // гонщик видит свои отметки, но не топ; после конца топ открыт всем
+  const me=JSON.parse(g9.ctx.doGet({parameter:{action:'me',nick:'rider1'}}).s); assert.deepEqual(me.scans.map(x=>x[0]),['fin']);
+  assert.equal(JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s).leaderboard,undefined);
+  S9('Настройки').data.find(r=>r[0]==='Конец')[1]=new Date(Date.now()-1).toISOString(); g9.cache.clear();
+  const after=JSON.parse(g9.ctx.doGet({parameter:{action:'state'}}).s); assert.equal(after.results,true); assert.equal(after.leaderboard[0].nick,'rider1');
 }
 
 // конец аллейката: после него сканы не принимаются, тестовые работают

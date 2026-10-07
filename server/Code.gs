@@ -120,7 +120,9 @@ function getState_(testKey) {
     cache.put("public", JSON.stringify(pub), CACHE_SECONDS);
   }
   state.checkpoints = pub.checkpoints;
-  state.leaderboard = pub.leaderboard;
+  // топ и кто где был: во время гонки скрыты (азарт), видны организатору и после конца
+  state.results = test || now > s.end;
+  if (state.results) state.leaderboard = pub.leaderboard;
   return state;
 }
 
@@ -156,7 +158,15 @@ function me_(raw) {
   var nick = cleanNick_(raw);
   var reg = nick && findRegistration_(nick);
   if (!reg) throw userError_("Не нашли такой ник среди зарегистрированных");
-  return status_(reg, {});
+  // свои отметки гонщик видит всегда: [id точки, время]
+  var finals = {};
+  readPoints_().forEach(function (p) { if (p.final) finals[p.id] = true; });
+  var mine = readScans_().filter(function (x) { return x.nick === nick; });
+  var finishAt = Math.min.apply(null, mine.filter(function (x) { return finals[x.cp]; }).map(function (x) { return x.at; }).concat([Infinity]));
+  mine = mine
+    .filter(function (x) { return x.at <= finishAt; }) // после финиша не считается
+    .map(function (x) { return [x.cp, x.at]; });
+  return status_(reg, { scans: mine });
 }
 
 function status_(reg, extra) {
@@ -240,7 +250,8 @@ function scan_(body) {
     var pts = placePoints_(s, point.value, place);
     log({ value: pts }, OK, distance);
     CacheService.getScriptCache().remove("public");
-    return { cp: cpId, value: pts, place: place, distance: Math.round(distance), at: Date.now() };
+    // место и очки не отдаём: во время гонки гонщик не знает, кто был раньше
+    return { cp: cpId, distance: Math.round(distance), at: Date.now() };
   });
 }
 

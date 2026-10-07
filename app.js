@@ -30,6 +30,7 @@
   let clockOffset = 0; // серверное время − локальное
   let user = null; // { nick }
   let pendingScan = null; // скан, сделанный до входа
+  let myScans = []; // свои отметки: [[id точки, время]] — топ во время гонки скрыт
   let payment = null; // { amount, paid } - статус оплаты участника
 
   const now = () => Date.now() + clockOffset;
@@ -120,9 +121,11 @@
         return far ? { lat: c.lat + 0.015, lng: c.lng + 0.02, accuracy: 12 } : { lat: c.lat + 0.0002, lng: c.lng + 0.0002, accuracy: 12 };
       },
       async state() {
-        const t = mode === "reg" || mode === "pay" ? Date.now() : at(75);
-        const s = { now: t, start: START, end: Date.parse(R.end), radius: R.radius, open: t >= START };
-        if (s.open) Object.assign(s, { checkpoints: R.checkpoints, leaderboard: board() });
+        const END = Date.parse(R.end);
+        const t = mode === "reg" || mode === "pay" ? Date.now() : mode === "results" ? END + 10 * MIN : at(75);
+        const s = { now: t, start: START, end: END, radius: R.radius, open: t >= START, results: t > END };
+        if (s.open) s.checkpoints = R.checkpoints;
+        if (s.results) s.leaderboard = board(); // во время гонки топ скрыт
         return s;
       },
       async register(v) {
@@ -133,7 +136,7 @@
       },
       async me(nick) {
         const n = cleanNick(nick);
-        return { ok: true, nick: n, ...(regs[n] || { amount: price("М"), paid: false }) };
+        return { ok: true, nick: n, ...(regs[n] || { amount: price("М"), paid: false }), scans: n === R.demoUser.nick ? mine : [] };
       },
       async login(nick) {
         const n = cleanNick(nick);
@@ -205,10 +208,13 @@
 
   const cpName = (id) => ((state && state.checkpoints) || []).find((c) => c.id === id)?.name || "Точка";
 
+  // топ и «кто где был» приходят только организатору и после конца аллейката
+  const resultsOpen = () => Boolean(state && state.leaderboard);
+
   function myRow() {
     const board = (state && state.leaderboard) || [];
     const i = board.findIndex((r) => r.nick === user.nick);
-    return i >= 0 ? { ...board[i], place: i + 1 } : { nick: user.nick, score: 0, scans: [], place: null };
+    return i >= 0 ? { ...board[i], place: i + 1 } : { nick: user.nick, score: null, scans: myScans, place: null };
   }
 
   /* ================= загрузка ================= */
@@ -274,8 +280,11 @@
     $("race-join").hidden = Boolean(user);
     $("me").hidden = !user;
     if (user) renderMe();
+    // вкладка «Топ» только когда топ открыт
+    document.querySelector(".tabs").hidden = !resultsOpen();
+    if (!resultsOpen() && !$("tab-top").hidden) document.querySelector('[data-tab="points"]').click();
     renderCheckpoints();
-    renderBoard();
+    if (resultsOpen()) renderBoard();
   }
 
   // обычные точки (без финиша)
@@ -285,11 +294,12 @@
     const me = myRow();
     $("me").innerHTML =
       '<span class="me__nick">@' + esc(me.nick) + "</span>" +
-      '<span class="me__stat"><b>' + me.score + "</b> очк.</span>" +
+      (resultsOpen() ? '<span class="me__stat"><b>' + (me.score || 0) + "</b> очк.</span>" : "") +
       '<span class="me__stat"><b>' + me.scans.length + "/" + state.checkpoints.length + "</b> точек</span>" +
-      '<span class="me__stat me__place"><b>' + (me.place ? "#" + me.place : "-") + "</b> в топе</span>" +
+      (resultsOpen() ? '<span class="me__stat me__place"><b>' + (me.place ? "#" + me.place : "-") + "</b> в топе</span>" : "") +
       (payment && !payment.paid ? '<span class="me__warn">оплата пока не подтверждена</span>' : "");
   }
+
 
   // кто и когда уже отметил точку — по порядку прибытия
   function arrivals(cpId) {
@@ -316,8 +326,10 @@
           '<div class="cp__body">' +
           (c.final ? '<span class="cp__flag">финиш</span>' : "") +
           "<h3>" + esc(c.name) + "</h3>" +
-          '<p class="cp__meta">' + (n ? "приехали: " + n : "пока никого") +
-            (t ? ' · <b class="cp__mine">ты ' + (t[1] ? t[1] + "-й" : "✓") + "</b>" : "") + "</p>" +
+          '<p class="cp__meta">' +
+            (resultsOpen()
+              ? (n ? "приехали: " + n : "пока никого") + (t ? ' · <b class="cp__mine">ты ' + (t[1] ? t[1] + "-й" : "✓") + "</b>" : "")
+              : t ? '<b class="cp__mine">✓ взята в ' + fmtTime(t[0]) + "</b>" : user ? "не взята" : "") + "</p>" +
           "</div>" +
           (c.photo
             ? '<img class="cp__thumb" src="' + esc(preview(c.photo, 160)) + '" alt="" loading="lazy" onerror="this.remove()">'
@@ -355,6 +367,7 @@
           '<a class="cpd__photo" href="' + esc(c.qrPhoto) + '" target="_blank" rel="noopener" title="Открыть фото целиком">' +
           '<img src="' + esc(preview(c.qrPhoto)) + '" alt="Где висит QR: ' + esc(c.name) + '" loading="lazy" onerror="this.parentNode.remove()"></a>'
         : "") +
+      (!resultsOpen() ? "" :
       '<h3 class="cpd__sub">Уже приехали' + (who.length ? " · " + who.length : "") + "</h3>" +
       (who.length
         ? '<ol class="arrivals">' + who.map((x) =>
@@ -362,7 +375,7 @@
             '<span class="arrivals__place">' + x.place + "</span>" +
             '<span class="arrivals__nick">@' + esc(x.nick) + "</span>" +
             '<span class="arrivals__time">' + fmtTime(x.at) + "</span></li>").join("") + "</ol>"
-        : '<p class="cpd__empty">Пока никого. Приедешь первым, получишь больше всего очков.</p>');
+        : '<p class="cpd__empty">Пока никого.</p>'));
   }
 
   function openCpSheet(id) {
@@ -431,6 +444,7 @@
       $("login-error").textContent = "";
       signIn(res.nick);
       payment = { amount: res.amount, paid: res.paid };
+      await loadMyStatus();
       render();
       if (pendingScan) scan(...pendingScan);
     } catch (err) {
@@ -566,12 +580,10 @@
     if (res.already) return showSheet("ok", name, "Эта точка у тебя уже есть.", "Взята в " + fmtTime(res.at), "✓");
 
     await refresh();
-    const me = myRow();
+    await loadMyStatus();
     const isFinal = (state.checkpoints.find((c) => c.id === cp) || {}).final;
     showSheet("ok", name,
-      (res.place ? "Ты <b>" + res.place + "-й</b> на этой точке." : "") +
-        (me.place ? "<br>Теперь ты <b>#" + me.place + "</b> в топе." : "") +
-        (isFinal ? "<br>Финиш! Паркуй велик, внутри награждение и туса." : ""),
+      isFinal ? "Финиш! Паркуй велик, внутри награждение и туса." : "Гони к следующей точке.",
       "Точка засчитана · " + fmtTime(res.at), "✓");
   }
 
@@ -686,6 +698,7 @@
       const res = await api.me(user.nick);
       if (!res.ok) return;
       payment = { amount: res.amount, paid: res.paid };
+      if (res.scans) myScans = res.scans;
       if (!raceOn()) showDone(res, "@" + res.nick + ", ты в списке. " + startPhrase() + " здесь появятся точки маршрута.");
       else render();
     } catch (err) { /* статус оплаты не критичен - покажем в следующий раз */ }
@@ -724,6 +737,7 @@
     if (!["reg", "pay", "guest", "scan-guest"].includes(mode)) signIn(window.RACE.demoUser.nick);
     if (mode === "racer") payment = { amount: 300, paid: false };
     await refresh();
+    if (user && mode !== "pay") await loadMyStatus();
     if (mode === "pay") {
       const res = await demo.register({ telegram: "night_rider", gender: "М" });
       signIn(res.nick);
@@ -762,5 +776,5 @@
   })();
 
   // во время гонки обновляем топ, до старта - только отсчёт
-  setInterval(() => (raceOn() ? refresh() : state && tickCountdown()), 20 * 1000);
+  setInterval(() => (raceOn() ? refresh().then(loadMyStatus) : state && tickCountdown()), 20 * 1000);
 })();
