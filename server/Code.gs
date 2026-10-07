@@ -269,6 +269,12 @@ function admin_(body) {
     return { done: true, points: adminPoints_(s) };
   }
   if (body.op === "points") return { points: adminPoints_(s) };
+  // загрузчик (server/Loader.gs): взять свежий код с GitHub со следующего запроса
+  if (body.op === "reload") {
+    CacheService.getScriptCache().remove("serverCode");
+    return { done: true, loaded: typeof LOADER_INFO !== "undefined" ? LOADER_INFO : null };
+  }
+  if (body.op === "version") return { loaded: typeof LOADER_INFO !== "undefined" ? LOADER_INFO : null };
   if (body.op === "coords") return setCoords_(body);
   throw userError_("Неизвестная команда");
 }
