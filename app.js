@@ -79,7 +79,8 @@
 
   /* ================= демо ================= */
 
-  const demo = (function () {
+  // строится только в демо-режиме: на рабочем сайте data.js может и не загрузиться
+  const demo = !DEMO ? null : (function () {
     const R = window.RACE;
     const START = Date.parse(R.start);
     const at = (m) => START + m * MIN;
