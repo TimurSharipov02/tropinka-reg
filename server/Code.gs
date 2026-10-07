@@ -283,6 +283,11 @@ function admin_(body) {
   }
   if (body.op === "version") return { loaded: typeof LOADER_INFO !== "undefined" ? LOADER_INFO : null };
   if (body.op === "coords") return setCoords_(body);
+  // первичная настройка удалённо: дописать недостающие настройки и колонки (данные не трогает)
+  if (body.op === "setup") {
+    withLock_(setup);
+    return { done: true };
+  }
   throw userError_("Неизвестная команда");
 }
 

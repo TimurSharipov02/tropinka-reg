@@ -143,6 +143,8 @@ const NEW_HEAD=["ID","Название","Координаты","Ценность
   const res=call({op:'refresh',key}); assert.equal(res.ok,true); assert.equal(res.points[0].id,'p1'); assert.ok(res.points[0].secret);
   assert.match(res.points[0].link,/\?cp=p1&k=/); assert.equal(res.points[2].id,'fin'); assert.equal(res.points[2].link,'','у финиша нет QR');
   assert.equal(call({op:'points',key}).points.length,3);
+  g7.sheets['Настройки'].data=g7.sheets['Настройки'].data.filter(r=>r[0]!=='Очки за первое место');
+  assert.equal(call({op:'setup',key}).done,true); assert.ok(g7.sheets['Настройки'].data.find(r=>r[0]==='Очки за первое место'),'setup по ключу дописал настройку');
   keyRow[1]=''; assert.equal(call({op:'points',key:''}).error,'Нет доступа','пустой ключ не открывает');
 }
 
